@@ -275,7 +275,7 @@ class _StockEntryPageState extends State<StockEntryPage> {
                                     'Nhập hàng bằng giọng nói',
                                     maxLines: 1,
                                     style: TextStyle(
-                                      fontSize: 24,
+                                      fontSize: 28,
                                       fontWeight: FontWeight.bold,
                                       color: Colors.black87,
                                     ),
@@ -303,40 +303,84 @@ class _StockEntryPageState extends State<StockEntryPage> {
                     children: [
                       const SizedBox(height: 12),
                       Center(
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(24),
-                          onTap: _toggleListening,
-                          child: const Padding(
-                            padding: EdgeInsets.all(12),
-                            child: _WavePulse(size: 56),
-                          ),
+                        child: Column(
+                          children: [
+                            InkWell(
+                              borderRadius: BorderRadius.circular(80),
+                              onTap: _toggleListening,
+                              child: Container(
+                                width: 140,
+                                height: 140,
+                                decoration: BoxDecoration(
+                                  color: _isListening
+                                      ? const Color(0xFFE8E1FF)
+                                      : const Color(0xFFF3F0FF),
+                                  shape: BoxShape.circle,
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Color(0x22000000),
+                                      blurRadius: 18,
+                                      offset: Offset(0, 6),
+                                    ),
+                                  ],
+                                ),
+                                child: const Center(
+                                  child: _WavePulse(size: 90),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              _isListening ? 'Đang nghe...' : 'Bấm để nói',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            const Text(
+                              'Ví dụ: "Táo, 1 kg, 20000"',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.black54,
+                                height: 1.3,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
                       Center(
-                        child: TextButton.icon(
-                          onPressed: _openTextEntry,
-                          icon: const Icon(Icons.keyboard),
-                          label: const Text('Nhập bằng văn bản'),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Center(
-                        child: Text(
-                          'Nhấn micro và đọc:\n\'Tên, số lượng, giá\'',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 15,
-                            color: Colors.black54,
-                            height: 1.4,
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: _openTextEntry,
+                            icon: const Icon(Icons.keyboard),
+                            label: const Text('Nhập bằng bàn phím'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: Colors.black87,
+                              elevation: 0,
+                              side: const BorderSide(color: Color(0xFFE5E5E5)),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              textStyle: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 28),
+                      const SizedBox(height: 24),
                       const Text(
                         'Danh sách nhập hàng',
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 16,
                           fontWeight: FontWeight.w600,
                           color: Colors.black54,
                         ),
@@ -402,7 +446,7 @@ class _StockEntryPageState extends State<StockEntryPage> {
                     const Text(
                       'Lưu vào kho',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 18,
                         fontWeight: FontWeight.w600,
                         color: Colors.black87,
                       ),
@@ -411,7 +455,7 @@ class _StockEntryPageState extends State<StockEntryPage> {
                     Text(
                       '$count mặt hàng',
                       style: const TextStyle(
-                        fontSize: 14,
+                        fontSize: 16,
                         color: Colors.black54,
                       ),
                     ),
@@ -428,7 +472,7 @@ class _StockEntryPageState extends State<StockEntryPage> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black87,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      padding: const EdgeInsets.symmetric(vertical: 18),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
@@ -437,7 +481,10 @@ class _StockEntryPageState extends State<StockEntryPage> {
                     icon: const Icon(Icons.inventory_2_rounded),
                     label: const Text(
                       'Lưu vào kho',
-                      style: TextStyle(fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 18,
+                      ),
                     ),
                   ),
                 ),
@@ -464,11 +511,11 @@ class _StockEntryPageState extends State<StockEntryPage> {
                   },
                   borderRadius: BorderRadius.circular(24),
                   child: Container(
-                    width: 44,
-                    height: 44,
+                    width: 52,
+                    height: 52,
                     decoration: BoxDecoration(
                       color: const Color(0xFFFFE8E8),
-                      borderRadius: BorderRadius.circular(22),
+                      borderRadius: BorderRadius.circular(26),
                       boxShadow: const [
                         BoxShadow(
                           color: Color(0x33FFB3B3),
