@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:voice_bill/models/product_item.dart';
 import 'package:voice_bill/pages/profile_page.dart';
 import 'package:voice_bill/services/gemini_service.dart';
 import 'package:voice_bill/services/product_service.dart';
+import 'package:voice_bill/utils/currency_formatter.dart';
+import 'package:voice_bill/widgets/wave_pulse.dart';
 
 class StockEntryPage extends StatefulWidget {
   const StockEntryPage({super.key});
@@ -87,7 +90,7 @@ class _StockEntryPageState extends State<StockEntryPage> {
         await _productService.addProduct(
           name: name,
           unit: unit.isEmpty ? 'cai' : unit,
-          price: '${priceValue}d',
+          price: formatCurrency(priceValue),
         );
       }
     } catch (_) {
@@ -325,7 +328,7 @@ class _StockEntryPageState extends State<StockEntryPage> {
                                   ],
                                 ),
                                 child: const Center(
-                                  child: _WavePulse(size: 90),
+                                  child: WavePulse(size: 90),
                                 ),
                               ),
                             ),
@@ -547,97 +550,63 @@ class _StockItemTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              border: Border.all(color: const Color(0xFFEDEDED)),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.local_grocery_store,
-                    color: Colors.black87,
-                  ),
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      elevation: 0,
+      color: const Color(0xFFF8F8F8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEDE7FF),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.name,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black87,
-                        ),
+                child: const Icon(
+                  Icons.inventory_2_rounded,
+                  color: Color(0xFF7C4DFF),
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.name,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        item.unit,
-                        style: const TextStyle(color: Colors.black54),
-                      ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      item.unit,
+                      style: const TextStyle(color: Colors.black54),
+                    ),
+                  ],
                 ),
-                Text(
-                  item.price,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
+              ),
+              Text(
+                item.price,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
-    );
-  }
-}
-
-class _WavePulse extends StatefulWidget {
-  final double size;
-
-  const _WavePulse({required this.size});
-
-  @override
-  State<_WavePulse> createState() => _WavePulseState();
-}
-
-class _WavePulseState extends State<_WavePulse> {
-  bool _scaleUp = true;
-
-  @override
-  Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween<double>(
-        begin: _scaleUp ? 0.95 : 1.05,
-        end: _scaleUp ? 1.05 : 0.95,
-      ),
-      duration: const Duration(milliseconds: 900),
-      curve: Curves.easeInOut,
-      onEnd: () => setState(() => _scaleUp = !_scaleUp),
-      child: Icon(Icons.mic, size: widget.size, color: const Color(0xFFB7A7E5)),
-      builder: (context, scale, child) {
-        return Transform.scale(scale: scale, child: child);
-      },
     );
   }
 }

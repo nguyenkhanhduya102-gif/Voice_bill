@@ -1,60 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
-class BillItem {
-  final String name;
-  final int quantity;
-  final String price;
-
-  const BillItem({
-    required this.name,
-    required this.quantity,
-    required this.price,
-  });
-
-  Map<String, dynamic> toMap() {
-    return {'name': name, 'quantity': quantity, 'price': price};
-  }
-
-  factory BillItem.fromMap(Map<String, dynamic> data) {
-    return BillItem(
-      name: (data['name'] ?? '').toString(),
-      quantity: (data['quantity'] as num?)?.toInt() ?? 1,
-      price: (data['price'] ?? '').toString(),
-    );
-  }
-}
-
-class BillRecord {
-  final String id;
-  final List<BillItem> items;
-  final int total;
-  final String status;
-  final DateTime? createdAt;
-
-  const BillRecord({
-    required this.id,
-    required this.items,
-    required this.total,
-    required this.status,
-    required this.createdAt,
-  });
-
-  factory BillRecord.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
-    final data = doc.data() ?? {};
-    final rawItems = (data['items'] as List<dynamic>? ?? [])
-        .map((e) => BillItem.fromMap(Map<String, dynamic>.from(e as Map)))
-        .toList();
-    final Timestamp? timestamp = data['createdAt'] as Timestamp?;
-    return BillRecord(
-      id: doc.id,
-      items: rawItems,
-      total: (data['total'] as num?)?.toInt() ?? 0,
-      status: (data['status'] ?? 'paid').toString(),
-      createdAt: timestamp?.toDate(),
-    );
-  }
-}
+import 'package:voice_bill/models/bill_models.dart';
+import 'package:voice_bill/services/product_service.dart';
+import 'package:voice_bill/utils/price_parser.dart';
 
 class BillService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -90,7 +38,9 @@ class BillService {
       'items': items.map((item) => item.toMap()).toList(),
       'total': total,
       'status': status,
-      'createdAt': Timestamp.now(),
+      'createdAt': FieldValue.serverTimestamp(),
+      'clientCreatedAt': Timestamp.now(),
+      'updatedAt': FieldValue.serverTimestamp(),
     };
 
     final docRef = await _firestore
@@ -98,6 +48,12 @@ class BillService {
         .doc(user.uid)
         .collection('bills')
         .add(payload);
+
+    try {
+      await ProductService().decrementStockForSaleItems(items);
+    } catch (_) {
+      // Best-effort: không chặn luồng tạo hoá đơn nếu trừ tồn kho thất bại.
+    }
 
     return BillRecord(
       id: docRef.id,
@@ -107,4 +63,49 @@ class BillService {
       createdAt: DateTime.now(),
     );
   }
+
+  Future<int> backfillBillItemPrices() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw StateError('User not signed in');
+    }
+
+    final snapshot = await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('bills')
+        .get();
+
+    int updated = 0;
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      final rawItems = (data['items'] as List<dynamic>? ?? [])
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+      bool needsUpdate = false;
+      final newItems = rawItems.map((item) {
+        final priceText = (item['price'] ?? '').toString();
+        final unitPrice = parsePriceToInt(priceText);
+        final quantity = (item['quantity'] as num?)?.toInt() ?? 1;
+        final subtotal = unitPrice * quantity;
+        if (item['unitPrice'] == null || item['subtotal'] == null) {
+          needsUpdate = true;
+        }
+        return {...item, 'unitPrice': unitPrice, 'subtotal': subtotal};
+      }).toList();
+
+      if (!needsUpdate) {
+        continue;
+      }
+
+      await doc.reference.set({
+        'items': newItems,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      updated += 1;
+    }
+
+    return updated;
+  }
+
 }

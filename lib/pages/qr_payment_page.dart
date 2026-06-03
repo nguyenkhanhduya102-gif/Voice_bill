@@ -5,10 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:printing/printing.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:voice_bill/models/bill_models.dart';
 import 'package:voice_bill/pages/create_bill_page.dart';
-import 'package:voice_bill/services/bill_service.dart';
 import 'package:voice_bill/services/invoice_pdf_service.dart';
 import 'package:voice_bill/services/profile_service.dart';
+import 'package:voice_bill/utils/currency_formatter.dart';
+import 'package:voice_bill/utils/price_parser.dart';
+import 'package:voice_bill/utils/short_id.dart';
 
 class QrPaymentPage extends StatefulWidget {
   final BillRecord bill;
@@ -44,7 +47,7 @@ class _QrPaymentPageState extends State<QrPaymentPage> {
   Future<void> _sharePdf() async {
     final profile = _latestProfile;
     if (profile == null) {
-      _showSnack('Chua co thong tin ho so');
+      _showSnack('Chưa có thông tin hồ sơ');
       return;
     }
     final pdf = await _pdfService.buildPdf(bill: widget.bill, profile: profile);
@@ -54,7 +57,7 @@ class _QrPaymentPageState extends State<QrPaymentPage> {
   Future<void> _savePdf() async {
     final profile = _latestProfile;
     if (profile == null) {
-      _showSnack('Chua co thong tin ho so');
+      _showSnack('Chưa có thông tin hồ sơ');
       return;
     }
     final Uint8List pdf = await _pdfService.buildPdf(
@@ -63,10 +66,10 @@ class _QrPaymentPageState extends State<QrPaymentPage> {
     );
     final dir = await getApplicationDocumentsDirectory();
     final file = File(
-      '${dir.path}/hoa_don_${widget.bill.id.substring(0, 6)}.pdf',
+      '${dir.path}/hoa_don_${shortId(widget.bill.id)}.pdf',
     );
     await file.writeAsBytes(pdf);
-    _showSnack('Da luu: ${file.path}');
+    _showSnack('Đã lưu: ${file.path}');
   }
 
   void _showInvoiceDetail() {
@@ -84,7 +87,7 @@ class _QrPaymentPageState extends State<QrPaymentPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Hoa don ${widget.bill.id.substring(0, 6).toUpperCase()}',
+                'Hóa đơn ${shortId(widget.bill.id).toUpperCase()}',
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -106,7 +109,7 @@ class _QrPaymentPageState extends State<QrPaymentPage> {
               Align(
                 alignment: Alignment.centerRight,
                 child: Text(
-                  'Tong: ${_formatCurrency(widget.bill.total)}',
+                  'Tổng: ${formatCurrency(widget.bill.total)}',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
@@ -123,12 +126,12 @@ class _QrPaymentPageState extends State<QrPaymentPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Ma QR'),
+          title: const Text('Mã QR'),
           content: SizedBox(width: 240, height: 240, child: qrWidget),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Dong'),
+              child: const Text('Đóng'),
             ),
           ],
         );
@@ -144,22 +147,6 @@ class _QrPaymentPageState extends State<QrPaymentPage> {
     final month = date.month.toString().padLeft(2, '0');
     final year = date.year.toString();
     return '$day/$month/$year';
-  }
-
-  String _formatCurrency(int value) {
-    if (value <= 0) {
-      return '0đ';
-    }
-    final chars = value.toString().split('');
-    final buffer = StringBuffer();
-    for (int i = 0; i < chars.length; i++) {
-      final positionFromEnd = chars.length - i;
-      buffer.write(chars[i]);
-      if (positionFromEnd > 1 && positionFromEnd % 3 == 1) {
-        buffer.write('.');
-      }
-    }
-    return '${buffer.toString()}đ';
   }
 
   String _buildVietQrPayload({
@@ -275,7 +262,7 @@ class _QrPaymentPageState extends State<QrPaymentPage> {
             _InvoiceCard(
               bill: widget.bill,
               dateText: _formatDate(widget.bill.createdAt),
-              amountText: _formatCurrency(widget.bill.total),
+              amountText: formatCurrency(widget.bill.total),
               onTap: _showInvoiceDetail,
             ),
             const SizedBox(height: 20),
@@ -368,7 +355,7 @@ class _QrPaymentPageState extends State<QrPaymentPage> {
                 elevation: 0,
               ),
               icon: const Icon(Icons.save),
-              label: const Text('Luu PDF'),
+              label: const Text('Lưu PDF'),
             ),
             const SizedBox(height: 12),
             OutlinedButton.icon(
@@ -382,7 +369,7 @@ class _QrPaymentPageState extends State<QrPaymentPage> {
                 side: const BorderSide(color: Color(0xFFE5E5E5)),
               ),
               icon: const Icon(Icons.share),
-              label: const Text('Chia se PDF'),
+              label: const Text('Chia sẻ PDF'),
             ),
             const SizedBox(height: 8),
             TextButton.icon(
@@ -434,7 +421,7 @@ class _InvoiceCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Text('Mã: ${bill.id.substring(0, 6).toUpperCase()}'),
+                  Text('Mã: ${shortId(bill.id).toUpperCase()}'),
                   const Spacer(),
                   Text(
                     bill.status == 'debt' ? 'Ghi nợ' : 'Đã xác nhận',
@@ -452,8 +439,8 @@ class _InvoiceCard extends StatelessWidget {
                 final totalValue = priceValue * item.quantity;
                 return _InvoiceLine(
                   name: item.name,
-                  detail: '${item.quantity} x ${_formatCurrency(priceValue)}',
-                  total: _formatCurrency(totalValue),
+                  detail: '${item.quantity} x ${formatCurrency(priceValue)}',
+                  total: formatCurrency(totalValue),
                 );
               }),
               const SizedBox(height: 8),
@@ -498,26 +485,7 @@ class _InvoiceCard extends StatelessWidget {
     );
   }
 
-  String _formatCurrency(int value) {
-    if (value <= 0) {
-      return '0đ';
-    }
-    final chars = value.toString().split('');
-    final buffer = StringBuffer();
-    for (int i = 0; i < chars.length; i++) {
-      final positionFromEnd = chars.length - i;
-      buffer.write(chars[i]);
-      if (positionFromEnd > 1 && positionFromEnd % 3 == 1) {
-        buffer.write('.');
-      }
-    }
-    return '${buffer.toString()}đ';
-  }
-
-  int _parsePriceToInt(String raw) {
-    final cleaned = raw.replaceAll(RegExp(r'[^0-9]'), '');
-    return int.tryParse(cleaned) ?? 0;
-  }
+  int _parsePriceToInt(String raw) => parsePriceToInt(raw);
 }
 
 class _InvoiceLine extends StatelessWidget {

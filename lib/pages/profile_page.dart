@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:voice_bill/services/auth_service.dart';
+import 'package:voice_bill/services/bill_service.dart';
 import 'package:voice_bill/services/profile_service.dart';
+import 'package:voice_bill/services/product_service.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -15,6 +17,8 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   final AuthService _authService = AuthService();
   final ProfileService _profileService = ProfileService();
+  final ProductService _productService = ProductService();
+  final BillService _billService = BillService();
   final ImagePicker _imagePicker = ImagePicker();
 
   final TextEditingController _displayNameController = TextEditingController();
@@ -24,12 +28,12 @@ class _ProfilePageState extends State<ProfilePage> {
   final TextEditingController _accountNameController = TextEditingController();
   final TextEditingController _accountNumberController =
       TextEditingController();
-
   bool _initialized = false;
   bool _saving = false;
   bool _useQrImage = false;
   bool _uploadingAvatar = false;
   bool _uploadingQr = false;
+  bool _migrating = false;
   int _avatarRefreshKey = 0;
   _BankOption? _selectedBank;
 
@@ -178,6 +182,52 @@ class _ProfilePageState extends State<ProfilePage> {
 
     if (bank != null) {
       setState(() => _selectedBank = bank);
+    }
+  }
+
+  Future<void> _runMigration() async {
+    if (_migrating) {
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Cập nhật dữ liệu'),
+          content: const Text(
+            'Thao tác này sẽ cập nhật giá số cho sản phẩm và hóa đơn. '
+            'Chỉ cần chạy 1 lần.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Chạy'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) {
+      return;
+    }
+
+    try {
+      setState(() => _migrating = true);
+      final productUpdated = await _productService.backfillPriceValues();
+      final billUpdated = await _billService.backfillBillItemPrices();
+      _showSnack('Đã cập nhật $productUpdated sản phẩm, $billUpdated hóa đơn');
+    } catch (_) {
+      _showSnack('Không thể cập nhật dữ liệu');
+    } finally {
+      if (mounted) {
+        setState(() => _migrating = false);
+      }
     }
   }
 
@@ -531,6 +581,26 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  onPressed: _migrating ? null : _runMigration,
+                  icon: _migrating
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.sync_alt),
+                  label: const Text('Cập nhật dữ liệu (1 lần)'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.black87,
+                    side: const BorderSide(color: Color(0xFFE5E5E5)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
               ],
             );
           },
@@ -576,32 +646,6 @@ class _InputField extends StatelessWidget {
           borderSide: const BorderSide(color: Colors.black87),
         ),
       ),
-    );
-  }
-}
-
-class _SettingTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  const _SettingTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      onTap: onTap,
-      leading: Icon(icon, color: Colors.black87),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-      subtitle: Text(subtitle),
-      trailing: const Icon(Icons.chevron_right),
-      contentPadding: EdgeInsets.zero,
     );
   }
 }

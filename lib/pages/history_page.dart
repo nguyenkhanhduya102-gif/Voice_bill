@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:voice_bill/models/bill_models.dart';
+import 'package:voice_bill/pages/bill_detail_page.dart';
 import 'package:voice_bill/pages/create_bill_page.dart';
 import 'package:voice_bill/services/bill_service.dart';
+import 'package:voice_bill/utils/currency_formatter.dart';
+import 'package:voice_bill/utils/date_formatter.dart';
+import 'package:voice_bill/utils/short_id.dart';
 
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
@@ -60,32 +65,6 @@ class _HistoryPageState extends State<HistoryPage> {
       return;
     }
     setState(() => _searchQuery = result.trim());
-  }
-
-  String _formatDate(DateTime? date) {
-    if (date == null) {
-      return '';
-    }
-    final day = date.day.toString().padLeft(2, '0');
-    final month = date.month.toString().padLeft(2, '0');
-    final year = date.year.toString();
-    return '$day/$month/$year';
-  }
-
-  String _formatCurrency(int value) {
-    if (value <= 0) {
-      return '0đ';
-    }
-    final chars = value.toString().split('');
-    final buffer = StringBuffer();
-    for (int i = 0; i < chars.length; i++) {
-      final positionFromEnd = chars.length - i;
-      buffer.write(chars[i]);
-      if (positionFromEnd > 1 && positionFromEnd % 3 == 1) {
-        buffer.write('.');
-      }
-    }
-    return '${buffer.toString()}đ';
   }
 
   @override
@@ -200,12 +179,16 @@ class _HistoryPageState extends State<HistoryPage> {
                       final item = filtered[index];
                       return _HistoryCard(
                         item: item,
-                        dateText: _formatDate(item.createdAt),
-                        amountText: _formatCurrency(item.total),
+                        dateText: formatDate(item.createdAt),
+                        amountText: formatCurrency(item.total),
                         statusText: item.status == 'debt'
                             ? 'Ghi nợ'
                             : 'Đã thanh toán',
-                        onTap: () => _showSnack('Mở ${item.id}'),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => BillDetailPage(bill: item),
+                          ),
+                        ),
                       );
                     },
                   );
@@ -287,7 +270,7 @@ class _HistoryCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'HĐ ${item.id.substring(0, 6).toUpperCase()}',
+                  'HĐ ${shortId(item.id).toUpperCase()}',
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,

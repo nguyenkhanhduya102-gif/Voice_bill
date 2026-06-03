@@ -12,6 +12,7 @@ class AuthPage extends StatefulWidget {
 class _AuthPageState extends State<AuthPage> {
   bool _isLogin = true;
   bool _sendingCode = false;
+  bool _isBusy = false;
   String? _verificationId;
 
   final _formKey = GlobalKey<FormState>();
@@ -35,11 +36,15 @@ class _AuthPageState extends State<AuthPage> {
     if (!_formKey.currentState!.validate()) {
       return;
     }
+    if (_isBusy) {
+      return;
+    }
 
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
     try {
+      setState(() => _isBusy = true);
       if (_isLogin) {
         await _auth.signInWithEmail(email: email, password: password);
       } else {
@@ -53,14 +58,26 @@ class _AuthPageState extends State<AuthPage> {
       }
     } catch (e) {
       _showAuthError(e);
+    } finally {
+      if (mounted) {
+        setState(() => _isBusy = false);
+      }
     }
   }
 
   Future<void> _handleGoogle() async {
+    if (_isBusy) {
+      return;
+    }
     try {
+      setState(() => _isBusy = true);
       await _auth.signInWithGoogle();
     } catch (e) {
       _showAuthError(e);
+    } finally {
+      if (mounted) {
+        setState(() => _isBusy = false);
+      }
     }
   }
 
@@ -93,14 +110,22 @@ class _AuthPageState extends State<AuthPage> {
       _showError('Vui lòng nhập mã xác nhận');
       return;
     }
+    if (_isBusy) {
+      return;
+    }
 
     try {
+      setState(() => _isBusy = true);
       await _auth.confirmSmsCode(
         verificationId: _verificationId!,
         smsCode: code,
       );
     } catch (e) {
       _showAuthError(e);
+    } finally {
+      if (mounted) {
+        setState(() => _isBusy = false);
+      }
     }
   }
 
@@ -206,7 +231,7 @@ class _AuthPageState extends State<AuthPage> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _handleEmail,
+                        onPressed: _isBusy ? null : _handleEmail,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.black87,
                           foregroundColor: Colors.white,
@@ -217,7 +242,9 @@ class _AuthPageState extends State<AuthPage> {
                     ),
                     const SizedBox(height: 12),
                     TextButton(
-                      onPressed: () => setState(() => _isLogin = !_isLogin),
+                      onPressed: _isBusy
+                          ? null
+                          : () => setState(() => _isLogin = !_isLogin),
                       child: Text(
                         _isLogin
                             ? 'Chưa có tài khoản? Đăng ký'
@@ -228,7 +255,7 @@ class _AuthPageState extends State<AuthPage> {
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
-                        onPressed: _handleGoogle,
+                        onPressed: _isBusy ? null : _handleGoogle,
                         icon: const Icon(Icons.g_mobiledata),
                         label: const Text('Tiếp tục với Google'),
                       ),
@@ -255,7 +282,7 @@ class _AuthPageState extends State<AuthPage> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: OutlinedButton(
-                            onPressed: _verificationId == null
+                            onPressed: _verificationId == null || _isBusy
                                 ? null
                                 : _confirmSms,
                             child: const Text('Xác nhận OTP'),

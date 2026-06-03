@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:voice_bill/pages/create_bill_page.dart';
 import 'package:voice_bill/pages/stock_entry_page.dart';
+import 'package:voice_bill/widgets/wave_pulse.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -81,7 +82,24 @@ class _HomePageState extends State<HomePage> {
                           ),
                         ),
                         SizedBox(height: constraints.maxHeight * 0.12),
-                        const _WavePulse(),
+                        Container(
+                          width: 160,
+                          height: 160,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0EDFF),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.08),
+                                blurRadius: 16,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
+                          ),
+                          child: const Center(
+                            child: WavePulse(size: 90),
+                          ),
+                        ),
                         const SizedBox(height: 32),
                         AnimatedOpacity(
                           opacity: _animateIn ? 1 : 0,
@@ -197,54 +215,6 @@ class _FeatureTile extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _WavePulse extends StatefulWidget {
-  const _WavePulse();
-
-  @override
-  State<_WavePulse> createState() => _WavePulseState();
-}
-
-class _WavePulseState extends State<_WavePulse> {
-  bool _scaleUp = true;
-
-  @override
-  Widget build(BuildContext context) {
-    const double baseSize = 160;
-    const double iconSize = 90;
-
-    return TweenAnimationBuilder<double>(
-      tween: Tween<double>(
-        begin: _scaleUp ? 0.95 : 1.05,
-        end: _scaleUp ? 1.05 : 0.95,
-      ),
-      duration: const Duration(milliseconds: 900),
-      curve: Curves.easeInOut,
-      onEnd: () => setState(() => _scaleUp = !_scaleUp),
-      child: Container(
-        width: baseSize,
-        height: baseSize,
-        decoration: BoxDecoration(
-          color: const Color(0xFFF0EDFF),
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: const Center(
-          child: Icon(Icons.mic, size: iconSize, color: Color(0xFFB7A7E5)),
-        ),
-      ),
-      builder: (context, scale, child) {
-        return Transform.scale(scale: scale, child: child);
-      },
     );
   }
 }

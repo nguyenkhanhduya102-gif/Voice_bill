@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:voice_bill/models/product_item.dart';
 import 'package:voice_bill/pages/stock_entry_page.dart';
 import 'package:voice_bill/services/product_service.dart';
 
@@ -52,15 +53,15 @@ class _WarehousePageState extends State<WarehousePage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Don vi: ${item.unit}'),
-              Text('Gia: ${item.price}'),
-              Text('Ton kho: ${item.stock}'),
+              Text('Đơn vị: ${item.unit}'),
+              Text('Giá: ${item.price}'),
+              Text('Tồn kho: ${item.stock}'),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Dong'),
+              child: const Text('Đóng'),
             ),
           ],
         );
@@ -77,10 +78,6 @@ class _WarehousePageState extends State<WarehousePage> {
         elevation: 0,
         surfaceTintColor: Colors.white,
         foregroundColor: Colors.black87,
-        leading: IconButton(
-          onPressed: () => Navigator.of(context).maybePop(),
-          icon: const Icon(Icons.arrow_back),
-        ),
         actions: [
           IconButton(
             onPressed: () => _searchController.text = '',
@@ -152,71 +149,17 @@ class _WarehousePageState extends State<WarehousePage> {
                 ),
               ),
             ),
-            StreamBuilder<List<ProductItem>>(
-              stream: _productService.streamProducts(),
-              builder: (context, snapshot) {
-                final items = snapshot.data ?? [];
-                final lowStockCount = items
-                    .where((item) => item.stock <= _lowStockThreshold)
-                    .length;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _StatCard(
-                          title: 'Tổng mặt hàng',
-                          value: '${items.length} items',
-                          accentColor: Colors.black87,
-                          background: Colors.white,
-                          borderColor: const Color(0xFFEFEFEF),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _StatCard(
-                          title: 'Sắp hết hàng',
-                          value: '$lowStockCount items',
-                          accentColor: const Color(0xFFD65D1D),
-                          background: const Color(0xFFFFF3E6),
-                          borderColor: const Color(0xFFF2D2B5),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: const [
-                  Text(
-                    'Danh sách mặt hàng',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black54,
-                    ),
-                  ),
-                  Spacer(),
-                  Text(
-                    'Mới nhất',
-                    style: TextStyle(fontSize: 13, color: Colors.black45),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
             Expanded(
               child: StreamBuilder<List<ProductItem>>(
                 stream: _productService.streamProducts(),
                 builder: (context, snapshot) {
                   final items = snapshot.data ?? [];
+                  final lowStockCount = items
+                      .where((item) => item.stock <= _lowStockThreshold)
+                      .length;
+
                   final filtered = items.where((item) {
-                    final matchesQuery =
-                        _searchQuery.isEmpty ||
+                    final matchesQuery = _searchQuery.isEmpty ||
                         item.name.toLowerCase().contains(
                           _searchQuery.toLowerCase(),
                         );
@@ -225,29 +168,85 @@ class _WarehousePageState extends State<WarehousePage> {
                     return matchesQuery && matchesFilter;
                   }).toList();
 
-                  if (filtered.isEmpty) {
-                    return const Center(
-                      child: Text(
-                        'Chưa có mặt hàng nào',
-                        style: TextStyle(color: Colors.black45),
+                  return Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: _StatCard(
+                                title: 'Tổng mặt hàng',
+                                value: '${items.length} mặt hàng',
+                                accentColor: Colors.black87,
+                                background: Colors.white,
+                                borderColor: const Color(0xFFEFEFEF),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _StatCard(
+                                title: 'Sắp hết hàng',
+                                value: '$lowStockCount mặt hàng',
+                                accentColor: const Color(0xFFD65D1D),
+                                background: const Color(0xFFFFF3E6),
+                                borderColor: const Color(0xFFF2D2B5),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    );
-                  }
-
-                  return ListView.separated(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 8,
-                    ),
-                    itemCount: filtered.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      final item = filtered[index];
-                      return _InventoryTile(
-                        item: item,
-                        onTap: () => _showItemDetail(item),
-                      );
-                    },
+                      const SizedBox(height: 16),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Row(
+                          children: const [
+                            Text(
+                              'Danh sách mặt hàng',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black54,
+                              ),
+                            ),
+                            Spacer(),
+                            Text(
+                              'Mới nhất',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.black45,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Expanded(
+                        child: filtered.isEmpty
+                            ? const Center(
+                                child: Text(
+                                  'Chưa có mặt hàng nào',
+                                  style: TextStyle(color: Colors.black45),
+                                ),
+                              )
+                            : ListView.separated(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                  vertical: 8,
+                                ),
+                                itemCount: filtered.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(height: 12),
+                                itemBuilder: (context, index) {
+                                  final item = filtered[index];
+                                  return _InventoryTile(
+                                    item: item,
+                                    onTap: () => _showItemDetail(item),
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
                   );
                 },
               ),

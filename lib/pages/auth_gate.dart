@@ -18,6 +18,12 @@ class AuthGate extends StatelessWidget {
           );
         }
 
+        if (snapshot.hasError) {
+          return const Scaffold(
+            body: Center(child: Text('Không thể kết nối. Thử lại sau')),
+          );
+        }
+
         if (snapshot.hasData) {
           return const MainTabsPage();
         }

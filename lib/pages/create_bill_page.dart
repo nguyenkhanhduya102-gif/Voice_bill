@@ -2,10 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:voice_bill/models/bill_models.dart';
 import 'package:voice_bill/pages/qr_payment_page.dart';
 import 'package:voice_bill/pages/profile_page.dart';
 import 'package:voice_bill/services/bill_service.dart';
 import 'package:voice_bill/services/gemini_service.dart';
+import 'package:voice_bill/utils/currency_formatter.dart';
+import 'package:voice_bill/utils/price_parser.dart';
+import 'package:voice_bill/widgets/wave_pulse.dart';
 
 class CreateBillPage extends StatefulWidget {
   const CreateBillPage({super.key});
@@ -21,7 +25,7 @@ class _CreateBillPageState extends State<CreateBillPage> {
   final stt.SpeechToText _speech = stt.SpeechToText();
   final GeminiService _geminiService = GeminiService();
 
-  final List<_BillItem> _sellItems = [];
+  final List<BillItem> _sellItems = [];
   bool _isListening = false;
 
   @override
@@ -40,38 +44,16 @@ class _CreateBillPageState extends State<CreateBillPage> {
     );
   }
 
-  int _parsePriceToInt(String price) {
-    final digits = price.replaceAll(RegExp(r'[^0-9]'), '');
-    return int.tryParse(digits) ?? 0;
-  }
-
-  String _formatCurrency(int value) {
-    if (value <= 0) {
-      return '0đ';
-    }
-
-    final chars = value.toString().split('');
-    final buffer = StringBuffer();
-    for (int i = 0; i < chars.length; i++) {
-      final positionFromEnd = chars.length - i;
-      buffer.write(chars[i]);
-      if (positionFromEnd > 1 && positionFromEnd % 3 == 1) {
-        buffer.write('.');
-      }
-    }
-    return '${buffer.toString()}đ';
-  }
-
   String get _totalText {
     final total = _sellItems
-        .map((item) => _parsePriceToInt(item.price) * item.quantity)
+        .map((item) => parsePriceToInt(item.price) * item.quantity)
         .fold<int>(0, (sum, value) => sum + value);
-    return _formatCurrency(total);
+    return formatCurrency(total);
   }
 
   int get _totalValue {
     return _sellItems
-        .map((item) => _parsePriceToInt(item.price) * item.quantity)
+      .map((item) => parsePriceToInt(item.price) * item.quantity)
         .fold<int>(0, (sum, value) => sum + value);
   }
 
@@ -116,8 +98,8 @@ class _CreateBillPageState extends State<CreateBillPage> {
     setState(() => _sellItems.addAll(itemsToAdd));
   }
 
-  List<_BillItem> _parseTextItems(String rawText) {
-    final List<_BillItem> itemsToAdd = [];
+  List<BillItem> _parseTextItems(String rawText) {
+    final List<BillItem> itemsToAdd = [];
     final entries = rawText.split(RegExp(r'[\n;]'));
     for (final raw in entries) {
       final value = raw.trim();
@@ -138,15 +120,15 @@ class _CreateBillPageState extends State<CreateBillPage> {
       }
 
       final quantity = int.tryParse(quantityText) ?? 1;
-      final priceValue = _parsePriceToInt(priceText);
+      final priceValue = parsePriceToInt(priceText);
       if (quantity <= 0 || priceValue < 0) {
         continue;
       }
       itemsToAdd.add(
-        _BillItem(
+        BillItem(
           name: name,
           quantity: quantity,
-          price: _formatCurrency(priceValue),
+          price: formatCurrency(priceValue),
         ),
       );
     }
@@ -207,13 +189,13 @@ class _CreateBillPageState extends State<CreateBillPage> {
             if (name.isEmpty) {
               return null;
             }
-            return _BillItem(
+            return BillItem(
               name: name,
               quantity: quantity <= 0 ? 1 : quantity,
-              price: _formatCurrency(price < 0 ? 0 : price),
+              price: formatCurrency(price < 0 ? 0 : price),
             );
           })
-          .whereType<_BillItem>()
+          .whereType<BillItem>()
           .toList();
 
       if (items.isEmpty) {
@@ -278,15 +260,15 @@ class _CreateBillPageState extends State<CreateBillPage> {
 
     final name = nameController.text.trim();
     final qty = int.tryParse(qtyController.text.trim()) ?? item.quantity;
-    final price = _parsePriceToInt(priceController.text.trim());
+    final price = parsePriceToInt(priceController.text.trim());
     if (name.isEmpty) {
       return;
     }
     setState(
-      () => _sellItems[index] = _BillItem(
+      () => _sellItems[index] = BillItem(
         name: name,
         quantity: qty <= 0 ? 1 : qty,
-        price: _formatCurrency(price),
+        price: formatCurrency(price),
       ),
     );
   }
@@ -303,17 +285,8 @@ class _CreateBillPageState extends State<CreateBillPage> {
     setState(() => _submitting = true);
     _showSnack('Đang lưu hóa đơn...');
     try {
-      final items = _sellItems
-          .map(
-            (item) => BillItem(
-              name: item.name,
-              quantity: item.quantity,
-              price: item.price,
-            ),
-          )
-          .toList();
       final bill = await _billService
-          .createBill(items: items, total: _totalValue)
+          .createBill(items: _sellItems, total: _totalValue)
           .timeout(const Duration(seconds: 8));
       if (!mounted) {
         return;
@@ -439,7 +412,7 @@ class _CreateBillPageState extends State<CreateBillPage> {
                                   ],
                                 ),
                                 child: const Center(
-                                  child: _WavePulse(size: 90),
+                                  child: WavePulse(size: 90),
                                 ),
                               ),
                             ),
@@ -637,20 +610,8 @@ class _CreateBillPageState extends State<CreateBillPage> {
   }
 }
 
-class _BillItem {
-  final String name;
-  final int quantity;
-  final String price;
-
-  const _BillItem({
-    required this.name,
-    required this.quantity,
-    required this.price,
-  });
-}
-
 class _BillItemTile extends StatelessWidget {
-  final _BillItem item;
+  final BillItem item;
   final VoidCallback onTap;
 
   const _BillItemTile({required this.item, required this.onTap});
@@ -718,36 +679,6 @@ class _BillItemTile extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _WavePulse extends StatefulWidget {
-  final double size;
-
-  const _WavePulse({required this.size});
-
-  @override
-  State<_WavePulse> createState() => _WavePulseState();
-}
-
-class _WavePulseState extends State<_WavePulse> {
-  bool _scaleUp = true;
-
-  @override
-  Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween<double>(
-        begin: _scaleUp ? 0.95 : 1.05,
-        end: _scaleUp ? 1.05 : 0.95,
-      ),
-      duration: const Duration(milliseconds: 900),
-      curve: Curves.easeInOut,
-      onEnd: () => setState(() => _scaleUp = !_scaleUp),
-      child: Icon(Icons.mic, size: widget.size, color: const Color(0xFFB7A7E5)),
-      builder: (context, scale, child) {
-        return Transform.scale(scale: scale, child: child);
-      },
     );
   }
 }

@@ -1,10 +1,20 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  static String get _googleWebClientId {
+    const fromDefine = String.fromEnvironment('GOOGLE_WEB_CLIENT_ID');
+    if (fromDefine.isNotEmpty) {
+      return fromDefine;
+    }
+    return dotenv.env['GOOGLE_WEB_CLIENT_ID'] ?? '';
+  }
 
   Stream<User?> authStateChanges() => _auth.authStateChanges();
 
@@ -43,8 +53,9 @@ class AuthService {
 
   Future<UserCredential> signInWithGoogle() async {
     final GoogleSignInAccount? googleUser = await GoogleSignIn(
-      clientId:
-          '416830645566-f0r8l2f1f4hk289d8cmclc2edmjg99d5.apps.googleusercontent.com',
+      clientId: kIsWeb && _googleWebClientId.isNotEmpty
+          ? _googleWebClientId
+          : null,
     ).signIn();
     if (googleUser == null) {
       throw FirebaseAuthException(
@@ -74,7 +85,8 @@ class AuthService {
     await _auth.verifyPhoneNumber(
       phoneNumber: phoneNumber,
       verificationCompleted: (credential) async {
-        await _auth.signInWithCredential(credential);
+        final result = await _auth.signInWithCredential(credential);
+        await _ensureUserDoc(result.user);
       },
       verificationFailed: onFailed,
       codeSent: (verificationId, _) => onCodeSent(verificationId),

@@ -1,0 +1,87 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function optString(data, key, maxLen) {
+      return !(key in data) || (data[key] is string && data[key].size() <= maxLen);
+    }
+
+    function optTimestamp(data, key) {
+      return !(key in data) || (data[key] is timestamp);
+    }
+
+    function nonEmptyString(value, maxLen) {
+      return value is string && value.size() > 0 && value.size() <= maxLen;
+    }
+
+    function nonNegativeInt(value) {
+      return (value is int || value is number) && value >= 0;
+    }
+
+    function validUserProfile(data) {
+      // Cho phép cập nhật từng phần (merge:true), chỉ validate kiểu/độ dài.
+      return optString(data, 'displayName', 80)
+          && optString(data, 'email', 120)
+          && optString(data, 'phone', 30)
+          && optString(data, 'storeName', 120)
+          && optString(data, 'address', 200)
+          && optString(data, 'photoUrl', 500)
+          && optString(data, 'bankName', 80)
+          && optString(data, 'bankShortName', 20)
+          && optString(data, 'bankBin', 20)
+          && optString(data, 'accountNumber', 40)
+          && optString(data, 'accountName', 80)
+          && optString(data, 'qrImageUrl', 500)
+          && optString(data, 'qrMode', 10)
+          && optTimestamp(data, 'createdAt')
+          && optTimestamp(data, 'updatedAt');
+    }
+
+    function validProduct(data) {
+      return nonEmptyString(data.name, 120)
+          && nonEmptyString(data.unit, 40)
+          && (data.price is string)
+          && nonNegativeInt(data.priceValue)
+          && nonNegativeInt(data.stock)
+          && optTimestamp(data, 'createdAt')
+          && optTimestamp(data, 'updatedAt');
+    }
+
+    function validBill(data) {
+      return (data.items is list)
+          && data.items.size() <= 200
+          && (data.total is int || data.total is number)
+          && data.total >= 0
+          && (data.status is string)
+          && (data.status in ['paid', 'debt'])
+          && optTimestamp(data, 'createdAt')
+          && optTimestamp(data, 'updatedAt')
+          && optTimestamp(data, 'clientCreatedAt');
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId) && validUserProfile(request.resource.data);
+      allow delete: if false;
+
+      match /products/{productId} {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId) && validProduct(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+
+      match /bills/{billId} {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId) && validBill(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+    }
+  }
+}

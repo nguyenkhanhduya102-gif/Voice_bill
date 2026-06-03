@@ -53,8 +53,14 @@ class _MainTabsPageState extends State<MainTabsPage> {
                     Icons.receipt_long,
                     color: Colors.black87,
                   ),
-                  title: const Text('Bán hàng bằng giọng nói'),
-                  subtitle: const Text('Đọc tên mặt hàng để lên hóa đơn nhanh'),
+                  title: const Text(
+                    'Bán hàng bằng giọng nói',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: const Text(
+                    'Đọc tên mặt hàng để lên hóa đơn nhanh',
+                    style: TextStyle(fontSize: 14),
+                  ),
                   onTap: () {
                     Navigator.of(context).pop();
                     Navigator.of(this.context).push(
@@ -67,8 +73,14 @@ class _MainTabsPageState extends State<MainTabsPage> {
                     Icons.inventory_2_rounded,
                     color: Colors.black87,
                   ),
-                  title: const Text('Nhập hàng bằng giọng nói'),
-                  subtitle: const Text('Đọc tên, số lượng, giá để lưu vào kho'),
+                  title: const Text(
+                    'Nhập hàng bằng giọng nói',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: const Text(
+                    'Đọc tên, số lượng, giá để lưu vào kho',
+                    style: TextStyle(fontSize: 14),
+                  ),
                   onTap: () {
                     Navigator.of(context).pop();
                     Navigator.of(this.context).push(
@@ -90,6 +102,7 @@ class _MainTabsPageState extends State<MainTabsPage> {
     return Scaffold(
       body: IndexedStack(index: _currentIndex, children: _pages),
       bottomNavigationBar: BottomNavigationBar(
+        iconSize: 26,
         currentIndex: _navIndex,
         onTap: (index) {
           if (index == 2) {
@@ -104,10 +117,15 @@ class _MainTabsPageState extends State<MainTabsPage> {
         selectedItemColor: Colors.black87,
         unselectedItemColor: Colors.black45,
         showUnselectedLabels: true,
+        selectedLabelStyle: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+        ),
+        unselectedLabelStyle: const TextStyle(fontSize: 13),
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home_rounded),
-            label: 'Home',
+            label: 'Trang chủ',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.inventory_2_rounded),

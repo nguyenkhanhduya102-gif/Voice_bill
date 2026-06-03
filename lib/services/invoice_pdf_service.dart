@@ -2,8 +2,11 @@ import 'dart:typed_data';
 
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:voice_bill/services/bill_service.dart';
+import 'package:voice_bill/models/bill_models.dart';
 import 'package:voice_bill/services/profile_service.dart';
+import 'package:voice_bill/utils/currency_formatter.dart';
+import 'package:voice_bill/utils/price_parser.dart';
+import 'package:voice_bill/utils/short_id.dart';
 
 class InvoicePdfService {
   Future<Uint8List> buildPdf({
@@ -27,19 +30,19 @@ class InvoicePdfService {
                 ),
               ),
               pw.SizedBox(height: 8),
-              pw.Text('Hoa don: ${bill.id.substring(0, 6).toUpperCase()}'),
-              pw.Text('Ngay: ${_formatDate(bill.createdAt)}'),
+              pw.Text('Hóa đơn: ${shortId(bill.id).toUpperCase()}'),
+              pw.Text('Ngày: ${_formatDate(bill.createdAt)}'),
               pw.SizedBox(height: 12),
               pw.Table.fromTextArray(
-                headers: const ['Mat hang', 'SL', 'Gia', 'Thanh tien'],
+                headers: const ['Mặt hàng', 'SL', 'Giá', 'Thành tiền'],
                 data: bill.items.map((item) {
-                  final priceValue = _parsePriceToInt(item.price);
+                  final priceValue = parsePriceToInt(item.price);
                   final total = priceValue * item.quantity;
                   return [
                     item.name,
                     '${item.quantity}',
-                    _formatCurrency(priceValue),
-                    _formatCurrency(total),
+                    formatCurrency(priceValue),
+                    formatCurrency(total),
                   ];
                 }).toList(),
                 headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
@@ -56,7 +59,7 @@ class InvoicePdfService {
                 mainAxisAlignment: pw.MainAxisAlignment.end,
                 children: [
                   pw.Text(
-                    'Tong cong: ${_formatCurrency(bill.total)}',
+                    'Tổng cộng: ${formatCurrency(bill.total)}',
                     style: pw.TextStyle(
                       fontSize: 14,
                       fontWeight: pw.FontWeight.bold,
@@ -67,10 +70,10 @@ class InvoicePdfService {
               pw.SizedBox(height: 16),
               if (profile.accountNumber.isNotEmpty)
                 pw.Text(
-                  'Thanh toan: ${profile.bankName} - ${profile.accountNumber}',
+                  'Thanh toán: ${profile.bankName} - ${profile.accountNumber}',
                 ),
               if (profile.accountName.isNotEmpty)
-                pw.Text('Chu TK: ${profile.accountName}'),
+                pw.Text('Chủ TK: ${profile.accountName}'),
             ],
           );
         },
@@ -88,26 +91,5 @@ class InvoicePdfService {
     final month = date.month.toString().padLeft(2, '0');
     final year = date.year.toString();
     return '$day/$month/$year';
-  }
-
-  String _formatCurrency(int value) {
-    if (value <= 0) {
-      return '0d';
-    }
-    final chars = value.toString().split('');
-    final buffer = StringBuffer();
-    for (int i = 0; i < chars.length; i++) {
-      final positionFromEnd = chars.length - i;
-      buffer.write(chars[i]);
-      if (positionFromEnd > 1 && positionFromEnd % 3 == 1) {
-        buffer.write('.');
-      }
-    }
-    return '${buffer.toString()}d';
-  }
-
-  int _parsePriceToInt(String raw) {
-    final cleaned = raw.replaceAll(RegExp(r'[^0-9]'), '');
-    return int.tryParse(cleaned) ?? 0;
   }
 }
