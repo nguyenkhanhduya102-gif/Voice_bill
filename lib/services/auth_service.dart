@@ -18,11 +18,6 @@ class AuthService {
 
   Stream<User?> authStateChanges() => _auth.authStateChanges();
 
-  Future<bool> emailExists(String email) async {
-    final methods = await _auth.fetchSignInMethodsForEmail(email);
-    return methods.isNotEmpty;
-  }
-
   Future<UserCredential> signInWithEmail({
     required String email,
     required String password,

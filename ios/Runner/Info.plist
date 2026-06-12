@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Voice Bill</string>
+	<string>Hóa Đơn Giọng Nói</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -64,6 +64,8 @@
 	<string>Allow access to photo library to select an avatar.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Allow access to camera to take an avatar photo.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>VoiceBill needs microphone access to convert speech to text for creating invoices.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

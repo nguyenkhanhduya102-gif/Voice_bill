@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:voice_bill/services/auth_service.dart';
+import 'package:voice_bill/utils/app_theme.dart';
 
 class AuthPage extends StatefulWidget {
   const AuthPage({super.key});
@@ -48,12 +49,6 @@ class _AuthPageState extends State<AuthPage> {
       if (_isLogin) {
         await _auth.signInWithEmail(email: email, password: password);
       } else {
-        final exists = await _auth.emailExists(email);
-        if (exists) {
-          _showError('Email đã đăng ký, hãy đăng nhập');
-          setState(() => _isLogin = true);
-          return;
-        }
         await _auth.signUpWithEmail(email: email, password: password);
       }
     } catch (e) {
@@ -173,7 +168,7 @@ class _AuthPageState extends State<AuthPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.scaffoldBg,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -185,18 +180,20 @@ class _AuthPageState extends State<AuthPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
-                      'VoiceBill',
+                      Text(
+                      'Hóa Đơn Giọng Nói',
+                      textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: 28,
+                        fontSize: 30,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: context.brand,
+                        letterSpacing: -0.5,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       _isLogin ? 'Đăng nhập để tiếp tục' : 'Tạo tài khoản mới',
-                      style: const TextStyle(color: Colors.black54),
+                      style: TextStyle(color: context.textSecondary),
                     ),
                     const SizedBox(height: 24),
                     TextFormField(
@@ -233,11 +230,17 @@ class _AuthPageState extends State<AuthPage> {
                       child: ElevatedButton(
                         onPressed: _isBusy ? null : _handleEmail,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.black87,
+                          backgroundColor: context.brand,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
                         ),
-                        child: Text(_isLogin ? 'Đăng nhập' : 'Đăng ký'),
+                        child: Text(
+                          _isLogin ? 'Đăng nhập' : 'Đăng ký',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -258,6 +261,10 @@ class _AuthPageState extends State<AuthPage> {
                         onPressed: _isBusy ? null : _handleGoogle,
                         icon: const Icon(Icons.g_mobiledata),
                         label: const Text('Tiếp tục với Google'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: context.brand,
+                          side: BorderSide(color: context.brand),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -274,6 +281,10 @@ class _AuthPageState extends State<AuthPage> {
                         Expanded(
                           child: OutlinedButton(
                             onPressed: _sendingCode ? null : _handlePhone,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: context.brand,
+                              side: BorderSide(color: context.brand),
+                            ),
                             child: Text(
                               _sendingCode ? 'Đang gửi mã...' : 'Gửi mã OTP',
                             ),
@@ -285,6 +296,10 @@ class _AuthPageState extends State<AuthPage> {
                             onPressed: _verificationId == null || _isBusy
                                 ? null
                                 : _confirmSms,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: context.brand,
+                              side: BorderSide(color: context.brand),
+                            ),
                             child: const Text('Xác nhận OTP'),
                           ),
                         ),

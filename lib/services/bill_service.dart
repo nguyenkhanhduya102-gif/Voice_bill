@@ -10,9 +10,7 @@ class BillService {
 
   Stream<List<BillRecord>> streamBills() {
     return _auth.authStateChanges().asyncExpand((user) {
-      if (user == null) {
-        return Stream.value([]);
-      }
+      if (user == null) return Stream.value([]);
 
       return _firestore
           .collection('users')
@@ -30,45 +28,59 @@ class BillService {
     String status = 'paid',
   }) async {
     final user = _auth.currentUser;
-    if (user == null) {
-      throw StateError('User not signed in');
-    }
+    if (user == null) throw StateError('User not signed in');
 
-    final payload = {
-      'items': items.map((item) => item.toMap()).toList(),
-      'total': total,
-      'status': status,
-      'createdAt': FieldValue.serverTimestamp(),
-      'clientCreatedAt': Timestamp.now(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    };
+    final userRef = _firestore.collection('users').doc(user.uid);
+    // Tạo trước ref với id tự sinh để dùng được trong transaction.
+    final billRef = userRef.collection('bills').doc();
 
-    final docRef = await _firestore
-        .collection('users')
-        .doc(user.uid)
-        .collection('bills')
-        .add(payload);
+    // Cấp số hóa đơn VÀ ghi hóa đơn trong CÙNG một transaction để đảm bảo
+    // tính nguyên tử: nếu ghi bill lỗi thì số hóa đơn cũng không bị tăng
+    // (tránh nhảy số / trùng số).
+    final invoiceNumber = await _firestore.runTransaction<int>((transaction) async {
+      final snap = await transaction.get(userRef);
+      final next = (snap.data()?['nextInvoiceNumber'] as num?)?.toInt() ?? 1;
+
+      transaction.set(
+        userRef,
+        {'nextInvoiceNumber': next + 1},
+        SetOptions(merge: true),
+      );
+      transaction.set(billRef, {
+        'items': items.map((item) => item.toMap()).toList(),
+        'total': total,
+        'status': status,
+        'invoiceNumber': next,
+        'createdAt': FieldValue.serverTimestamp(),
+        'clientCreatedAt': Timestamp.now(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      return next;
+    });
 
     try {
       await ProductService().decrementStockForSaleItems(items);
     } catch (_) {
-      // Best-effort: không chặn luồng tạo hoá đơn nếu trừ tồn kho thất bại.
+      // Best-effort: trừ kho thất bại không làm hỏng hóa đơn đã lưu.
     }
 
     return BillRecord(
-      id: docRef.id,
+      id: billRef.id,
       items: items,
       total: total,
       status: status,
       createdAt: DateTime.now(),
+      invoiceNumber: invoiceNumber,
     );
+  }
+
+  String formatInvoiceNumber(int num) {
+    return 'HD-${num.toString().padLeft(6, '0')}';
   }
 
   Future<int> backfillBillItemPrices() async {
     final user = _auth.currentUser;
-    if (user == null) {
-      throw StateError('User not signed in');
-    }
+    if (user == null) throw StateError('User not signed in');
 
     final snapshot = await _firestore
         .collection('users')
@@ -94,9 +106,7 @@ class BillService {
         return {...item, 'unitPrice': unitPrice, 'subtotal': subtotal};
       }).toList();
 
-      if (!needsUpdate) {
-        continue;
-      }
+      if (!needsUpdate) continue;
 
       await doc.reference.set({
         'items': newItems,
@@ -107,5 +117,4 @@ class BillService {
 
     return updated;
   }
-
 }

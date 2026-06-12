@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:voice_bill/models/bill_models.dart';
+import 'package:voice_bill/utils/app_theme.dart';
+import 'package:voice_bill/utils/currency_formatter.dart';
 
 class BillItemTile extends StatelessWidget {
   final BillItem item;
@@ -18,7 +20,7 @@ class BillItemTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Material(
-        color: Colors.white,
+        color: context.surface,
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           onTap: onTap,
@@ -26,7 +28,7 @@ class BillItemTile extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
-              border: Border.all(color: const Color(0xFFEDEDED)),
+              border: Border.all(color: context.border),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Row(
@@ -35,12 +37,14 @@ class BillItemTile extends StatelessWidget {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: Colors.grey[200],
+                    color: context.isDark
+                        ? const Color(0xFF2E4D33)
+                        : const Color(0xFFE8F5E9),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.inventory_2_rounded,
-                    color: Colors.black87,
+                    color: context.textPrimary,
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -50,25 +54,25 @@ class BillItemTile extends StatelessWidget {
                     children: [
                       Text(
                         item.name,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: Colors.black87,
+                          color: context.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${item.quantity} x',
-                        style: const TextStyle(color: Colors.black54),
+                        '${item.quantity} x ${formatCurrency(item.unitPrice)}',
+                        style: TextStyle(color: context.textSecondary),
                       ),
                     ],
                   ),
                 ),
                 Text(
-                  item.price,
-                  style: const TextStyle(
+                  formatCurrency(item.subtotal),
+                  style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: context.textPrimary,
                   ),
                 ),
                 if (onDelete != null) ...[
@@ -76,10 +80,10 @@ class BillItemTile extends StatelessWidget {
                   InkWell(
                     onTap: onDelete,
                     borderRadius: BorderRadius.circular(16),
-                    child: const Icon(
+                    child: Icon(
                       Icons.close,
                       size: 20,
-                      color: Colors.black45,
+                      color: context.textMuted,
                     ),
                   ),
                 ],

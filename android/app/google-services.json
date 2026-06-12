@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "416830645566",
+    "project_id": "voicebill-334b2",
+    "storage_bucket": "voicebill-334b2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:416830645566:android:81d5fe15b273fc569cf86f",
+        "android_client_info": {
+          "package_name": "com.example.voice_bill"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "416830645566-f0r8l2f1f4hk289d8cmclc2edmjg99d5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDkmVR4VylHCvFRlhokXQA8UMKs0S13TM0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "416830645566-f0r8l2f1f4hk289d8cmclc2edmjg99d5.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "416830645566-kge42t7i5v39eech55hfm4uecqtacrma.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.khanhduy.voicebill"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

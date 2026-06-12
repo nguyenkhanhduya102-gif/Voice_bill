@@ -3,12 +3,14 @@ import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:voice_bill/models/bill_models.dart';
+import 'package:voice_bill/services/bill_service.dart';
 import 'package:voice_bill/services/profile_service.dart';
 import 'package:voice_bill/utils/currency_formatter.dart';
-import 'package:voice_bill/utils/price_parser.dart';
 import 'package:voice_bill/utils/short_id.dart';
 
 class InvoicePdfService {
+  final BillService _billService = BillService();
+
   Future<Uint8List> buildPdf({
     required BillRecord bill,
     required UserProfile profile,
@@ -30,19 +32,21 @@ class InvoicePdfService {
                 ),
               ),
               pw.SizedBox(height: 8),
-              pw.Text('Hóa đơn: ${shortId(bill.id).toUpperCase()}'),
+              pw.Text(
+                bill.invoiceNumber > 0
+                    ? 'Hóa đơn: ${_billService.formatInvoiceNumber(bill.invoiceNumber)}'
+                    : 'Hóa đơn: ${shortId(bill.id).toUpperCase()}',
+              ),
               pw.Text('Ngày: ${_formatDate(bill.createdAt)}'),
               pw.SizedBox(height: 12),
-              pw.Table.fromTextArray(
+              pw.TableHelper.fromTextArray(
                 headers: const ['Mặt hàng', 'SL', 'Giá', 'Thành tiền'],
                 data: bill.items.map((item) {
-                  final priceValue = parsePriceToInt(item.price);
-                  final total = priceValue * item.quantity;
                   return [
                     item.name,
                     '${item.quantity}',
-                    formatCurrency(priceValue),
-                    formatCurrency(total),
+                    formatCurrency(item.unitPrice),
+                    formatCurrency(item.subtotal),
                   ];
                 }).toList(),
                 headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
@@ -58,12 +62,16 @@ class InvoicePdfService {
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.end,
                 children: [
-                  pw.Text(
-                    'Tổng cộng: ${formatCurrency(bill.total)}',
-                    style: pw.TextStyle(
-                      fontSize: 14,
-                      fontWeight: pw.FontWeight.bold,
-                    ),
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      pw.Text('Tổng tiền: ${formatCurrency(bill.total)}',
+                        style: pw.TextStyle(
+                          fontSize: 14,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -84,9 +92,7 @@ class InvoicePdfService {
   }
 
   String _formatDate(DateTime? date) {
-    if (date == null) {
-      return '';
-    }
+    if (date == null) return '';
     final day = date.day.toString().padLeft(2, '0');
     final month = date.month.toString().padLeft(2, '0');
     final year = date.year.toString();

@@ -1,97 +1,39 @@
-import 'dart:convert';
+import 'package:cloud_functions/cloud_functions.dart';
 
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:google_generative_ai/google_generative_ai.dart';
 
 class GeminiService {
-  static String get _apiKey {
-    const fromDefine = String.fromEnvironment('GEMINI_API_KEY');
-    if (fromDefine.isNotEmpty) {
-      return fromDefine;
-    }
-    return dotenv.env['GEMINI_API_KEY'] ?? '';
+  
+  final FirebaseFunctions _functions =
+      FirebaseFunctions.instanceFor(region: 'asia-southeast1');
+
+  bool get hasKey => true;
+  Future<List<Map<String, dynamic>>> parseSaleItems(
+    String text, {
+    List<Map<String, dynamic>> products = const [],
+  }) async {
+    final result = await _functions.httpsCallable('parseSale').call<Map>({
+      'text': text,
+      'products': products,
+    });
+    return _itemsFrom(result.data);
   }
 
-  GenerativeModel? _model;
-
-  bool get hasKey => _apiKey.isNotEmpty;
-
-  GenerativeModel _getModel() {
-    return _model ??= GenerativeModel(
-      model: 'gemini-1.5-flash',
-      apiKey: _apiKey,
-      generationConfig: GenerationConfig(
-        temperature: 0.2,
-        responseMimeType: 'application/json',
-      ),
-    );
+  Future<List<Map<String, dynamic>>> parseStockItems(
+    String text, {
+    List<Map<String, dynamic>> products = const [],
+  }) async {
+    final result = await _functions.httpsCallable('parseStock').call<Map>({
+      'text': text,
+      'products': products,
+    });
+    return _itemsFrom(result.data);
   }
 
-  Future<List<Map<String, dynamic>>> parseSaleItems(String text) async {
-    final prompt = {
-      'task': 'parse_sale_items',
-      'input': text,
-      'rules': [
-        'Return JSON array of items with name, quantity, price',
-        'quantity and price are integers',
-        'If missing quantity or price, set to 1 and 0',
-      ],
-      'examples': [
-        {
-          'input': 'tao 2 15000, cam 1 12000',
-          'output': [
-            {'name': 'Táo', 'quantity': 2, 'price': 15000},
-            {'name': 'Cam', 'quantity': 1, 'price': 12000},
-          ],
-        },
-      ],
-    };
-
-    final response = await _getModel().generateContent([
-      Content.text(jsonEncode(prompt)),
-    ]);
-
-    final textOut = response.text ?? '[]';
-    final decoded = jsonDecode(textOut);
-    if (decoded is List) {
-      return decoded
+  List<Map<String, dynamic>> _itemsFrom(Object? data) {
+    if (data is Map && data['items'] is List) {
+      return (data['items'] as List)
           .whereType<Map>()
-          .map((item) => item.cast<String, dynamic>())
-          .toList();
-    }
-    return [];
-  }
-
-  Future<List<Map<String, dynamic>>> parseStockItems(String text) async {
-    final prompt = {
-      'task': 'parse_stock_items',
-      'input': text,
-      'rules': [
-        'Return JSON array of items with name, unit, price',
-        'price is integer',
-        'If missing unit or price, set unit to "cai" and price to 0',
-      ],
-      'examples': [
-        {
-          'input': 'tao 1kg 20000, cam 1kg 18000',
-          'output': [
-            {'name': 'Táo', 'unit': 'kg', 'price': 20000},
-            {'name': 'Cam', 'unit': 'kg', 'price': 18000},
-          ],
-        },
-      ],
-    };
-
-    final response = await _getModel().generateContent([
-      Content.text(jsonEncode(prompt)),
-    ]);
-
-    final textOut = response.text ?? '[]';
-    final decoded = jsonDecode(textOut);
-    if (decoded is List) {
-      return decoded
-          .whereType<Map>()
-          .map((item) => item.cast<String, dynamic>())
+          .map((item) => item.map((k, v) => MapEntry(k.toString(), v)))
           .toList();
     }
     return [];

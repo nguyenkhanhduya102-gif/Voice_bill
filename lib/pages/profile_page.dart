@@ -2,10 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:voice_bill/pages/tax_page.dart';
 import 'package:voice_bill/services/auth_service.dart';
 import 'package:voice_bill/services/bill_service.dart';
 import 'package:voice_bill/services/profile_service.dart';
 import 'package:voice_bill/services/product_service.dart';
+import 'package:voice_bill/utils/app_theme.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -26,8 +28,7 @@ class _ProfilePageState extends State<ProfilePage> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _accountNameController = TextEditingController();
-  final TextEditingController _accountNumberController =
-      TextEditingController();
+  final TextEditingController _accountNumberController =TextEditingController();
   bool _initialized = false;
   bool _saving = false;
   bool _useQrImage = false;
@@ -159,7 +160,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _pickBank() async {
     final bank = await showModalBottomSheet<_BankOption>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: context.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
@@ -245,12 +246,12 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.scaffoldBg,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: context.surface,
         elevation: 0,
-        surfaceTintColor: Colors.white,
-        foregroundColor: Colors.black87,
+        surfaceTintColor: context.surface,
+        foregroundColor: context.textPrimary,
         leading: IconButton(
           onPressed: () => Navigator.of(context).maybePop(),
           icon: const Icon(Icons.arrow_back),
@@ -267,7 +268,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 : const Icon(Icons.check, size: 18),
             label: const Text('Lưu'),
             style: TextButton.styleFrom(
-              foregroundColor: Colors.black87,
+              foregroundColor: const Color(0xFF2E7D32),
               textStyle: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
@@ -339,9 +340,9 @@ class _ProfilePageState extends State<ProfilePage> {
                     vertical: 18,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: context.surface,
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: const Color(0xFFEFEFEF)),
+                    border: Border.all(color: context.border),
                   ),
                   child: Row(
                     children: [
@@ -351,9 +352,9 @@ class _ProfilePageState extends State<ProfilePage> {
                         child: Stack(
                           alignment: Alignment.center,
                           children: [
-                            CircleAvatar(
+                              CircleAvatar(
                               radius: 32,
-                              backgroundColor: Colors.black87,
+                              backgroundColor: const Color(0xFF2E7D32),
                               child: Text(
                                 initials,
                                 style: const TextStyle(
@@ -391,29 +392,29 @@ class _ProfilePageState extends State<ProfilePage> {
                           profile.storeName.isNotEmpty
                               ? profile.storeName
                               : 'Cập nhật thông tin cửa hàng',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
-                            color: Colors.black87,
+                            color: context.textPrimary,
                           ),
                         ),
                       ),
                       InkWell(
                         onTap: _uploadingAvatar
-                            ? null
+                            ? null 
                             : () => _pickAvatar(profile),
                         borderRadius: BorderRadius.circular(16),
                         child: Container(
                           width: 32,
                           height: 32,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFFE6D9),
+                            color: const Color(0xFFE8F5E9),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Icon(
                             Icons.edit,
                             size: 16,
-                            color: Color(0xFFB86B45),
+                            color: Color(0xFF2E7D32),
                           ),
                         ),
                       ),
@@ -421,12 +422,12 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                const Text(
+                Text(
                   'THÔNG TIN CÁ NHÂN',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: Colors.black45,
+                    color: context.textMuted,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -436,12 +437,12 @@ class _ProfilePageState extends State<ProfilePage> {
                   icon: Icons.person,
                 ),
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   'THÔNG TIN CỬA HÀNG',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: Colors.black45,
+                    color: context.textMuted,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -464,14 +465,33 @@ class _ProfilePageState extends State<ProfilePage> {
                   icon: Icons.location_on,
                 ),
                 const SizedBox(height: 20),
-                const Divider(color: Color(0xFFEFEFEF)),
+                Container(
+                  decoration: BoxDecoration(
+                    color: context.surface,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: context.border),
+                  ),
+                  child: ListTile(
+                    leading: Icon(Icons.account_balance_wallet_outlined,
+                        color: context.brand),
+                    title: const Text('Thuế & Báo cáo'),
+                    subtitle: const Text(
+                        'Doanh thu năm, cảnh báo ngưỡng, sổ S1a'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const TaxPage()),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Divider(color: context.border),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'THANH TOÁN & MÃ QR',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: Colors.black45,
+                    color: context.textMuted,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -479,7 +499,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFEFEFEF)),
+                    border: Border.all(color: context.border),
                   ),
                   child: Column(
                     children: [
@@ -537,9 +557,9 @@ class _ProfilePageState extends State<ProfilePage> {
                                   : const Icon(Icons.upload),
                               label: const Text('Tải ảnh QR'),
                               style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.black87,
+                                foregroundColor: const Color(0xFF2E7D32),
                                 side: const BorderSide(
-                                  color: Color(0xFFE5E5E5),
+                                  color: Color(0xFF2E7D32),
                                 ),
                                 padding: const EdgeInsets.symmetric(
                                   vertical: 12,
@@ -568,13 +588,67 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 ),
                 const SizedBox(height: 16),
+                ValueListenableBuilder<ThemeMode>(
+                  valueListenable: themeController,
+                  builder: (context, mode, _) {
+                    final isDarkNow =
+                        Theme.of(context).brightness == Brightness.dark;
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: context.surface,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: context.border),
+                      ),
+                      child: SwitchListTile.adaptive(
+                        value: isDarkNow,
+                        onChanged: (_) => themeController.toggle(
+                          Theme.of(context).brightness,
+                        ),
+                        secondary: Icon(
+                          isDarkNow ? Icons.dark_mode : Icons.light_mode,
+                          color: context.brand,
+                        ),
+                        title: const Text('Chế độ tối'),
+                        subtitle: Text(
+                          mode == ThemeMode.system
+                              ? 'Đang theo hệ thống'
+                              : (isDarkNow ? 'Đang bật' : 'Đang tắt'),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 10),
+                ValueListenableBuilder<double>(
+                  valueListenable: textScaleController,
+                  builder: (context, scale, _) {
+                    final isLarge = scale >= TextScaleController.large;
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: context.surface,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: context.border),
+                      ),
+                      child: SwitchListTile.adaptive(
+                        value: isLarge,
+                        onChanged: (v) => textScaleController.setLarge(v),
+                        secondary: Icon(Icons.format_size, color: context.brand),
+                        title: const Text('Chữ lớn'),
+                        subtitle: Text(
+                          isLarge ? 'Đang bật' : 'Phóng to chữ cho dễ đọc',
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 10),
                 OutlinedButton.icon(
                   onPressed: _signOut,
                   icon: const Icon(Icons.logout),
                   label: const Text('Đăng xuất'),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.black87,
-                    side: const BorderSide(color: Color(0xFFE5E5E5)),
+                    foregroundColor: const Color(0xFF2E7D32),
+                    side: const BorderSide(color: Color(0xFF2E7D32)),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
@@ -593,8 +667,8 @@ class _ProfilePageState extends State<ProfilePage> {
                       : const Icon(Icons.sync_alt),
                   label: const Text('Cập nhật dữ liệu (1 lần)'),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.black87,
-                    side: const BorderSide(color: Color(0xFFE5E5E5)),
+                    foregroundColor: const Color(0xFF2E7D32),
+                    side: const BorderSide(color: Color(0xFF2E7D32)),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
@@ -632,18 +706,18 @@ class _InputField extends StatelessWidget {
         labelText: label,
         prefixIcon: Icon(icon),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: context.surface,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 14,
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFFE5E5E5)),
+          borderSide: BorderSide(color: context.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Colors.black87),
+          borderSide: BorderSide(color: context.brand),
         ),
       ),
     );
@@ -673,4 +747,5 @@ const List<_BankOption> _banks = [
   _BankOption(name: 'Sacombank', shortName: 'STB', bin: '970403'),
   _BankOption(name: 'SHB', shortName: 'SHB', bin: '970443'),
   _BankOption(name: 'TPBank', shortName: 'TPB', bin: '970423'),
+
 ];

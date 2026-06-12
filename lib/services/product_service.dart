@@ -29,7 +29,7 @@ class ProductService {
   Future<void> addProduct({
     required String name,
     required String unit,
-    required String price,
+    required int priceValue,
     int stock = 1,
   }) async {
     final user = _auth.currentUser;
@@ -41,8 +41,7 @@ class ProductService {
       id: '',
       name: name,
       unit: unit,
-      price: price,
-      priceValue: ProductItem.parsePriceToInt(price),
+      priceValue: priceValue < 0 ? 0 : priceValue,
       stock: stock,
     );
 
@@ -53,11 +52,99 @@ class ProductService {
         .add({...item.toMap(), 'updatedAt': FieldValue.serverTimestamp()});
   }
 
+  /// Gộp các dòng nhập trùng tên trong CÙNG một lô (summing quantity, lấy
+  /// giá/đơn vị mới nhất). Thuần (không I/O) để test được. Khóa = tên chuẩn hóa.
+  static Map<String, Map<String, dynamic>> aggregateStockItems(
+      List<Map<String, dynamic>> items) {
+    final agg = <String, Map<String, dynamic>>{};
+    for (final item in items) {
+      final name = (item['name'] ?? '').toString().trim();
+      if (name.isEmpty) continue;
+      final key = _normalizeKey(name);
+      final unit = (item['unit'] ?? 'cái').toString().trim();
+      final price = (item['priceValue'] as num?)?.toInt() ??
+          (item['price'] as num?)?.toInt() ??
+          0;
+      final rawQty = (item['quantity'] as num?)?.toInt() ?? 1;
+      final qty = rawQty <= 0 ? 1 : rawQty;
+
+      final existing = agg[key];
+      if (existing == null) {
+        agg[key] = {
+          'name': name,
+          'unit': unit.isEmpty ? 'cái' : unit,
+          'priceValue': price < 0 ? 0 : price,
+          'quantity': qty,
+        };
+      } else {
+        existing['quantity'] = (existing['quantity'] as int) + qty;
+        if (price > 0) existing['priceValue'] = price;
+        if (unit.isNotEmpty) existing['unit'] = unit;
+      }
+    }
+    return agg;
+  }
+
+  /// Lưu danh sách mặt hàng nhập: trùng tên (đã có trong kho) -> cộng dồn tồn +
+  /// cập nhật giá/đơn vị mới; chưa có -> tạo mới. Trả về (added, merged).
+  Future<({int added, int merged})> upsertProducts(
+      List<Map<String, dynamic>> items) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw StateError('User not signed in');
+    }
+    final aggregated = aggregateStockItems(items).values.toList();
+    if (aggregated.isEmpty) return (added: 0, merged: 0);
+
+    final col =
+        _firestore.collection('users').doc(user.uid).collection('products');
+    final snapshot = await col.get();
+    final byName = <String, DocumentReference<Map<String, dynamic>>>{};
+    for (final doc in snapshot.docs) {
+      final key = _normalizeKey((doc.data()['name'] ?? '').toString());
+      if (key.isNotEmpty) byName.putIfAbsent(key, () => doc.reference);
+    }
+
+    final batch = _firestore.batch();
+    int added = 0, merged = 0;
+    for (final item in aggregated) {
+      final name = item['name'] as String;
+      final unit = item['unit'] as String;
+      final priceValue = item['priceValue'] as int;
+      final qty = item['quantity'] as int;
+      final key = _normalizeKey(name);
+
+      final existing = byName[key];
+      if (existing != null) {
+        final update = <String, dynamic>{
+          'stock': FieldValue.increment(qty),
+          'unit': unit,
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+        if (priceValue > 0) update['priceValue'] = priceValue;
+        batch.update(existing, update);
+        merged++;
+      } else {
+        batch.set(col.doc(), {
+          'name': name,
+          'unit': unit,
+          'priceValue': priceValue,
+          'stock': qty,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        added++;
+      }
+    }
+    await batch.commit();
+    return (added: added, merged: merged);
+  }
+
   Future<void> updateProduct({
     required String id,
     required String name,
     required String unit,
-    required String price,
+    required int priceValue,
     required int stock,
   }) async {
     final user = _auth.currentUser;
@@ -73,11 +160,24 @@ class ProductService {
         .set({
           'name': name,
           'unit': unit,
-          'price': price,
-          'priceValue': ProductItem.parsePriceToInt(price),
+          'priceValue': priceValue < 0 ? 0 : priceValue,
           'stock': stock,
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
+  }
+
+  Future<void> deleteProduct(String id) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw StateError('User not signed in');
+    }
+
+    await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('products')
+        .doc(id)
+        .delete();
   }
 
   Future<int> backfillPriceValues() async {
@@ -114,6 +214,23 @@ class ProductService {
     return updated;
   }
 
+  /// Nạp toàn bộ sản phẩm 1 lần (không realtime). Dùng để đưa danh mục vào
+  /// prompt Gemini và để resolve productId cho item bán.
+  Future<List<ProductItem>> fetchProducts() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      return [];
+    }
+    final snapshot = await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('products')
+        .get();
+    return snapshot.docs
+        .map((doc) => ProductItem.fromMap(doc.id, doc.data()))
+        .toList();
+  }
+
   Future<int> decrementStockForSaleItems(List<BillItem> items) async {
     final user = _auth.currentUser;
     if (user == null) {
@@ -123,60 +240,63 @@ class ProductService {
       return 0;
     }
 
-    final soldByName = <String, int>{};
-    for (final item in items) {
-      final key = _normalizeKey(item.name);
-      if (key.isEmpty) {
-        continue;
-      }
-      soldByName[key] = (soldByName[key] ?? 0) + (item.quantity <= 0 ? 0 : item.quantity);
-    }
-    if (soldByName.isEmpty) {
-      return 0;
-    }
-
-    final snapshot = await _firestore
+    final productsRef = _firestore
         .collection('users')
         .doc(user.uid)
-        .collection('products')
-        .get();
+        .collection('products');
 
-    final productsByName = <String, QueryDocumentSnapshot<Map<String, dynamic>>>{};
+    // Gom số lượng bán theo từng document sản phẩm. Ưu tiên productId (chính
+    // xác tuyệt đối); nếu item không có productId thì mới rơi về khớp tên.
+    final snapshot = await productsRef.get();
+    final refById = <String, DocumentReference<Map<String, dynamic>>>{};
+    final refByName = <String, DocumentReference<Map<String, dynamic>>>{};
     for (final doc in snapshot.docs) {
-      final name = (doc.data()['name'] ?? '').toString();
-      final key = _normalizeKey(name);
-      if (key.isEmpty) {
-        continue;
+      refById[doc.id] = doc.reference;
+      final key = _normalizeKey((doc.data()['name'] ?? '').toString());
+      if (key.isNotEmpty) {
+        refByName[key] = doc.reference;
       }
-      productsByName[key] = doc;
     }
 
-    final batch = _firestore.batch();
-    int updated = 0;
-    for (final entry in soldByName.entries) {
-      final doc = productsByName[entry.key];
-      if (doc == null) {
-        continue;
+    final soldByRef = <DocumentReference<Map<String, dynamic>>, int>{};
+    for (final item in items) {
+      final qty = item.quantity <= 0 ? 0 : item.quantity;
+      if (qty == 0) continue;
+
+      DocumentReference<Map<String, dynamic>>? ref;
+      if (item.productId != null) {
+        ref = refById[item.productId];
       }
-      final currentStock = (doc.data()['stock'] as num?)?.toInt() ?? 0;
-      final nextStock = (currentStock - entry.value);
-      batch.set(
-        doc.reference,
-        {
-          'stock': nextStock < 0 ? 0 : nextStock,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
-      updated += 1;
+      ref ??= refByName[_normalizeKey(item.name)];
+      if (ref == null) continue;
+
+      soldByRef[ref] = (soldByRef[ref] ?? 0) + qty;
     }
 
-    if (updated == 0) {
+    if (soldByRef.isEmpty) {
       return 0;
     }
 
-    await batch.commit();
-    return updated;
+    await _firestore.runTransaction((transaction) async {
+      // Đọc tất cả trước khi ghi (yêu cầu của transaction Firestore).
+      final snaps = <DocumentReference<Map<String, dynamic>>,
+          DocumentSnapshot<Map<String, dynamic>>>{};
+      for (final ref in soldByRef.keys) {
+        snaps[ref] = await transaction.get(ref);
+      }
+      for (final entry in soldByRef.entries) {
+        final snap = snaps[entry.key];
+        if (snap == null || !snap.exists) continue;
+        final currentStock = (snap.data()?['stock'] as num?)?.toInt() ?? 0;
+        final nextStock = currentStock - entry.value;
+        transaction.update(entry.key, {
+          'stock': nextStock < 0 ? 0 : nextStock,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+    });
+
+    return soldByRef.length;
   }
 
   static String _normalizeKey(String input) {

@@ -5,7 +5,9 @@ class ProductItem {
   final String id;
   final String name;
   final String unit;
-  final String price;
+
+  /// Giá, đơn vị đồng (int). Nguồn sự thật duy nhất cho tiền; định dạng
+  /// "15.000đ" chỉ làm ở tầng hiển thị.
   final int priceValue;
   final int stock;
 
@@ -13,20 +15,18 @@ class ProductItem {
     required this.id,
     required this.name,
     required this.unit,
-    required this.price,
     required this.priceValue,
     required this.stock,
   });
 
   factory ProductItem.fromMap(String id, Map<String, dynamic> data) {
-    final priceText = (data['price'] ?? '').toString();
-    final int priceValue =
-        (data['priceValue'] as num?)?.toInt() ?? parsePriceToInt(priceText);
+    // Ưu tiên priceValue (int). Đọc dữ liệu cũ: rơi về 'price' dạng chuỗi.
+    final int priceValue = (data['priceValue'] as num?)?.toInt() ??
+        parsePriceToInt((data['price'] ?? '').toString());
     return ProductItem(
       id: id,
       name: (data['name'] ?? '').toString(),
       unit: (data['unit'] ?? '').toString(),
-      price: priceText,
       priceValue: priceValue,
       stock: (data['stock'] as num?)?.toInt() ?? 0,
     );
@@ -36,7 +36,6 @@ class ProductItem {
     return {
       'name': name,
       'unit': unit,
-      'price': price,
       'priceValue': priceValue,
       'stock': stock,
       'createdAt': FieldValue.serverTimestamp(),

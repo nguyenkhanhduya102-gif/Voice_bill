@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:voice_bill/pages/create_bill_page.dart';
 import 'package:voice_bill/pages/stock_entry_page.dart';
+import 'package:voice_bill/utils/app_theme.dart';
 import 'package:voice_bill/widgets/wave_pulse.dart';
 
 class HomePage extends StatefulWidget {
@@ -17,9 +18,7 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     Future.microtask(() {
-      if (mounted) {
-        setState(() => _animateIn = true);
-      }
+      if (mounted) setState(() => _animateIn = true);
     });
   }
 
@@ -32,7 +31,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.scaffoldBg,
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -44,8 +43,7 @@ class _HomePageState extends State<HomePage> {
                     padding: const EdgeInsets.symmetric(horizontal: 22),
                     child: Column(
                       children: [
-                        const SizedBox(height: 32),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 24),
                         AnimatedOpacity(
                           opacity: _animateIn ? 1 : 0,
                           duration: const Duration(milliseconds: 600),
@@ -56,24 +54,25 @@ class _HomePageState extends State<HomePage> {
                                 : const Offset(0, -0.04),
                             duration: const Duration(milliseconds: 600),
                             curve: Curves.easeOut,
-                            child: const Center(
+                            child: Center(
                               child: Column(
                                 children: [
                                   Text(
-                                    'VoiceBill',
+                                    'Hóa Đơn Giọng Nói',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 32,
-                                      color: Colors.black87,
+                                      color: context.brand,
+                                      letterSpacing: -0.5,
                                     ),
                                   ),
-                                  SizedBox(height: 8),
+                                  const SizedBox(height: 8),
                                   Text(
                                     'Hóa đơn nhanh từ giọng nói',
                                     style: TextStyle(
                                       fontSize: 16,
-                                      color: Colors.grey,
-                                      fontWeight: FontWeight.w400,
+                                      color: context.textSecondary,
+                                      fontWeight: FontWeight.w500,
                                     ),
                                   ),
                                 ],
@@ -81,26 +80,62 @@ class _HomePageState extends State<HomePage> {
                             ),
                           ),
                         ),
-                        SizedBox(height: constraints.maxHeight * 0.12),
-                        Container(
-                          width: 160,
-                          height: 160,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF0EDFF),
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.08),
-                                blurRadius: 16,
-                                offset: const Offset(0, 6),
-                              ),
-                            ],
+                        SizedBox(height: constraints.maxHeight * 0.08),
+                        GestureDetector(
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const CreateBillPage(),
+                            ),
                           ),
-                          child: const Center(
-                            child: WavePulse(size: 90),
+                          child: Container(
+                            width: 200,
+                            height: 200,
+                            decoration: BoxDecoration(
+                              gradient: RadialGradient(
+                                colors: context.isDark
+                                    ? [
+                                        context.brand.withValues(alpha: 0.18),
+                                        context.brand.withValues(alpha: 0.08),
+                                      ]
+                                    : const [
+                                        Color(0xFFE8F5E9),
+                                        Color(0xFFC8E6C9),
+                                      ],
+                                center: Alignment.center,
+                                radius: 0.9,
+                              ),
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: context.brand.withValues(alpha: 0.2),
+                                  blurRadius: 30,
+                                  offset: const Offset(0, 10),
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: WavePulse(size: 110, color: context.brand),
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 24),
+                        Text(
+                          'Chạm để nói',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
+                            color: context.brand,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Đọc tên mặt hàng để tạo hóa đơn ngay',
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: context.textSecondary,
+                          ),
+                        ),
+                        SizedBox(height: constraints.maxHeight * 0.06),
                         AnimatedOpacity(
                           opacity: _animateIn ? 1 : 0,
                           duration: const Duration(milliseconds: 700),
@@ -111,34 +146,16 @@ class _HomePageState extends State<HomePage> {
                                 : const Offset(0, 0.06),
                             duration: const Duration(milliseconds: 700),
                             curve: Curves.easeOut,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _FeatureTile(
-                                  icon: Icons.receipt_long,
-                                  title: 'Bán hàng bằng giọng nói',
-                                  description:
-                                      'Đọc tên mặt hàng để hệ thống tự tính và lên hóa đơn.',
-                                  onTap: () => Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => const CreateBillPage(),
-                                    ),
-                                  ),
+                            child: _FeatureTile(
+                              icon: Icons.inventory_2_rounded,
+                              title: 'Nhập hàng bằng giọng nói',
+                              description:
+                                  'Đọc tên, số lượng, giá để lưu nhanh vào kho.',
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const StockEntryPage(),
                                 ),
-                                const SizedBox(height: 20),
-                                _FeatureTile(
-                                  icon: Icons.inventory_2_rounded,
-                                  title: 'Nhập hàng bằng giọng nói',
-                                  description:
-                                      'Đọc tên, số lượng, giá để lưu nhanh vào kho.',
-                                  onTap: () => Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => const StockEntryPage(),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 10),
-                              ],
+                              ),
                             ),
                           ),
                         ),
@@ -175,7 +192,7 @@ class _FeatureTile extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         splashFactory: NoSplash.splashFactory,
-        overlayColor: MaterialStateProperty.all(Colors.transparent),
+        overlayColor: WidgetStateProperty.all(Colors.transparent),
         highlightColor: Colors.transparent,
         splashColor: Colors.transparent,
         onTap: onTap,
@@ -186,10 +203,10 @@ class _FeatureTile extends StatelessWidget {
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: Colors.grey[200],
+                color: context.surfaceAlt,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, size: 24, color: Colors.black87),
+              child: Icon(icon, size: 24, color: context.brand),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -198,16 +215,16 @@ class _FeatureTile extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: context.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     description,
-                    style: const TextStyle(fontSize: 14, color: Colors.black54),
+                    style: TextStyle(fontSize: 14, color: context.textSecondary),
                   ),
                 ],
               ),

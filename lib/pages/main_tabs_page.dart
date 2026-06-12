@@ -5,6 +5,7 @@ import 'package:voice_bill/pages/home_page.dart';
 import 'package:voice_bill/pages/profile_page.dart';
 import 'package:voice_bill/pages/stock_entry_page.dart';
 import 'package:voice_bill/pages/warehouse_page.dart';
+import 'package:voice_bill/utils/app_theme.dart';
 
 class MainTabsPage extends StatefulWidget {
   const MainTabsPage({super.key});
@@ -28,7 +29,7 @@ class _MainTabsPageState extends State<MainTabsPage> {
   void _openQuickActions() {
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: context.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -43,15 +44,15 @@ class _MainTabsPageState extends State<MainTabsPage> {
                   width: 36,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE0E0E0),
+                    color: context.border,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
                 const SizedBox(height: 12),
                 ListTile(
-                  leading: const Icon(
+                  leading: Icon(
                     Icons.receipt_long,
-                    color: Colors.black87,
+                    color: context.brand,
                   ),
                   title: const Text(
                     'Bán hàng bằng giọng nói',
@@ -69,9 +70,9 @@ class _MainTabsPageState extends State<MainTabsPage> {
                   },
                 ),
                 ListTile(
-                  leading: const Icon(
+                  leading: Icon(
                     Icons.inventory_2_rounded,
-                    color: Colors.black87,
+                    color: context.brand,
                   ),
                   title: const Text(
                     'Nhập hàng bằng giọng nói',
@@ -114,14 +115,15 @@ class _MainTabsPageState extends State<MainTabsPage> {
           setState(() => _currentIndex = pageIndex);
         },
         type: BottomNavigationBarType.fixed,
-        selectedItemColor: Colors.black87,
-        unselectedItemColor: Colors.black45,
+        backgroundColor: context.surface,
+        selectedItemColor: context.brand,
+        unselectedItemColor: context.textMuted,
         showUnselectedLabels: true,
         selectedLabelStyle: const TextStyle(
-          fontSize: 14,
+          fontSize: 13,
           fontWeight: FontWeight.w600,
         ),
-        unselectedLabelStyle: const TextStyle(fontSize: 13),
+        unselectedLabelStyle: const TextStyle(fontSize: 12),
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home_rounded),

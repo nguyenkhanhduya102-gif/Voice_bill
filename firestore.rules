@@ -47,7 +47,8 @@ service cloud.firestore {
     function validProduct(data) {
       return nonEmptyString(data.name, 120)
           && nonEmptyString(data.unit, 40)
-          && (data.price is string)
+          // 'price' (chuỗi) chỉ còn ở dữ liệu cũ, không bắt buộc nữa.
+          && optString(data, 'price', 40)
           && nonNegativeInt(data.priceValue)
           && nonNegativeInt(data.stock)
           && optTimestamp(data, 'createdAt')
@@ -81,6 +82,10 @@ service cloud.firestore {
         allow read: if isOwner(userId);
         allow create, update: if isOwner(userId) && validBill(request.resource.data);
         allow delete: if isOwner(userId);
+      }
+
+      match /counters/{counterId} {
+        allow read, write: if isOwner(userId);
       }
     }
   }

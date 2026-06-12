@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:voice_bill/models/bill_models.dart';
+import 'package:voice_bill/services/bill_service.dart';
+import 'package:voice_bill/utils/app_theme.dart';
 import 'package:voice_bill/utils/currency_formatter.dart';
 import 'package:voice_bill/utils/date_formatter.dart';
 import 'package:voice_bill/utils/short_id.dart';
@@ -12,14 +14,19 @@ class BillDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dateText = formatDate(bill.createdAt);
+    final billService = BillService();
+    final billLabel = bill.invoiceNumber > 0
+        ? billService.formatInvoiceNumber(bill.invoiceNumber)
+        : 'HĐ ${shortId(bill.id).toUpperCase()}';
+    final isDebt = bill.status == 'debt';
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.scaffoldBg,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: context.surface,
         elevation: 0,
-        surfaceTintColor: Colors.white,
-        foregroundColor: Colors.black87,
+        surfaceTintColor: context.surface,
+        foregroundColor: context.textPrimary,
         leading: IconButton(
           onPressed: () => Navigator.of(context).maybePop(),
           icon: const Icon(Icons.arrow_back),
@@ -36,52 +43,59 @@ class BillDetailPage extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                border: Border.all(color: const Color(0xFFEFEFEF)),
+                border: Border.all(color: context.border),
                 borderRadius: BorderRadius.circular(18),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'HĐ ${shortId(bill.id).toUpperCase()}',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    bill.status == 'debt' ? 'Ghi nợ' : 'Đã thanh toán',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        billLabel,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: context.textPrimary,
+                        ),
+                      ),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isDebt
+                              ? (context.isDark ? const Color(0xFF4A3320) : const Color(0xFFFFF3E0))
+                              : (context.isDark ? const Color(0xFF2E4D33) : const Color(0xFFE8F5E9)),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          isDebt ? 'Ghi nợ' : 'Đã thanh toán',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: isDebt
+                                ? const Color(0xFFE65100)
+                                : context.brand,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      const Icon(
-                        Icons.calendar_today,
-                        size: 14,
-                        color: Colors.black45,
-                      ),
+                      Icon(Icons.calendar_today, size: 14, color: context.textMuted),
                       const SizedBox(width: 6),
-                      Text(dateText, style: const TextStyle(color: Colors.black45)),
+                      Text(dateText, style: TextStyle(color: context.textMuted)),
                     ],
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Danh sách mặt hàng',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.black87,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: context.textPrimary),
             ),
             const SizedBox(height: 12),
             ...bill.items.map(
@@ -89,7 +103,7 @@ class BillDetailPage extends StatelessWidget {
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(
-                  border: Border.all(color: const Color(0xFFEFEFEF)),
+                  border: Border.all(color: context.border),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Row(
@@ -100,26 +114,16 @@ class BillDetailPage extends StatelessWidget {
                         children: [
                           Text(
                             item.name,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87,
-                            ),
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: context.textPrimary),
                           ),
                           const SizedBox(height: 4),
-                          Text(
-                            'Số lượng: ${item.quantity}',
-                            style: const TextStyle(color: Colors.black54),
-                          ),
+                          Text('${item.quantity} x ${formatCurrency(item.unitPrice)}', style: TextStyle(color: context.textSecondary)),
                         ],
                       ),
                     ),
                     Text(
-                      item.price,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
+                      formatCurrency(item.subtotal),
+                      style: TextStyle(fontWeight: FontWeight.bold, color: context.textPrimary),
                     ),
                   ],
                 ),
@@ -129,27 +133,19 @@ class BillDetailPage extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8F8F8),
+                color: context.surfaceAlt,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Row(
                 children: [
-                  const Text(
+                  Text(
                     'Tổng cộng',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: context.textPrimary),
                   ),
                   const Spacer(),
                   Text(
                     formatCurrency(bill.total),
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.brand),
                   ),
                 ],
               ),

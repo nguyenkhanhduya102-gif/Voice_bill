@@ -7,10 +7,11 @@ import 'package:printing/printing.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:voice_bill/models/bill_models.dart';
 import 'package:voice_bill/pages/create_bill_page.dart';
+import 'package:voice_bill/services/bill_service.dart';
 import 'package:voice_bill/services/invoice_pdf_service.dart';
 import 'package:voice_bill/services/profile_service.dart';
+import 'package:voice_bill/utils/app_theme.dart';
 import 'package:voice_bill/utils/currency_formatter.dart';
-import 'package:voice_bill/utils/price_parser.dart';
 import 'package:voice_bill/utils/short_id.dart';
 
 class QrPaymentPage extends StatefulWidget {
@@ -26,15 +27,14 @@ class _QrPaymentPageState extends State<QrPaymentPage> {
   bool _animateIn = false;
   final ProfileService _profileService = ProfileService();
   final InvoicePdfService _pdfService = InvoicePdfService();
+  final BillService _billService = BillService();
   UserProfile? _latestProfile;
 
   @override
   void initState() {
     super.initState();
     Future.microtask(() {
-      if (mounted) {
-        setState(() => _animateIn = true);
-      }
+      if (mounted) setState(() => _animateIn = true);
     });
   }
 
@@ -50,8 +50,12 @@ class _QrPaymentPageState extends State<QrPaymentPage> {
       _showSnack('Chưa có thông tin hồ sơ');
       return;
     }
-    final pdf = await _pdfService.buildPdf(bill: widget.bill, profile: profile);
-    await Printing.sharePdf(bytes: pdf, filename: 'voicebill.pdf');
+    try {
+      final pdf = await _pdfService.buildPdf(bill: widget.bill, profile: profile);
+      await Printing.sharePdf(bytes: pdf, filename: 'voicebill.pdf');
+    } catch (e) {
+      _showSnack('Lỗi chia sẻ PDF: $e');
+    }
   }
 
   Future<void> _savePdf() async {
@@ -60,22 +64,27 @@ class _QrPaymentPageState extends State<QrPaymentPage> {
       _showSnack('Chưa có thông tin hồ sơ');
       return;
     }
-    final Uint8List pdf = await _pdfService.buildPdf(
-      bill: widget.bill,
-      profile: profile,
-    );
-    final dir = await getApplicationDocumentsDirectory();
-    final file = File(
-      '${dir.path}/hoa_don_${shortId(widget.bill.id)}.pdf',
-    );
-    await file.writeAsBytes(pdf);
-    _showSnack('Đã lưu: ${file.path}');
+    try {
+      final Uint8List pdf = await _pdfService.buildPdf(
+        bill: widget.bill,
+        profile: profile,
+      );
+      final dir = await getApplicationDocumentsDirectory();
+      final label = widget.bill.invoiceNumber > 0
+          ? 'HD-${widget.bill.invoiceNumber.toString().padLeft(6, '0')}'
+          : shortId(widget.bill.id);
+      final file = File('${dir.path}/hoa_don_$label.pdf');
+      await file.writeAsBytes(pdf);
+      _showSnack('Đã lưu: ${file.path}');
+    } catch (e) {
+      _showSnack('Lỗi lưu PDF: $e');
+    }
   }
 
   void _showInvoiceDetail() {
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: context.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
@@ -87,11 +96,8 @@ class _QrPaymentPageState extends State<QrPaymentPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Hóa đơn ${shortId(widget.bill.id).toUpperCase()}',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+                _billIdLabel,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 12),
               ...widget.bill.items.map(
@@ -100,7 +106,7 @@ class _QrPaymentPageState extends State<QrPaymentPage> {
                   child: Row(
                     children: [
                       Expanded(child: Text(item.name)),
-                      Text('${item.quantity} x ${item.price}'),
+                      Text('${item.quantity} x ${formatCurrency(item.unitPrice)}'),
                     ],
                   ),
                 ),
@@ -113,7 +119,6 @@ class _QrPaymentPageState extends State<QrPaymentPage> {
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
-              const SizedBox(height: 8),
             ],
           ),
         );
@@ -139,10 +144,15 @@ class _QrPaymentPageState extends State<QrPaymentPage> {
     );
   }
 
-  String _formatDate(DateTime? date) {
-    if (date == null) {
-      return '';
+  String get _billIdLabel {
+    if (widget.bill.invoiceNumber > 0) {
+      return 'Hóa đơn ${_billService.formatInvoiceNumber(widget.bill.invoiceNumber)}';
     }
+    return 'Hóa đơn ${shortId(widget.bill.id).toUpperCase()}';
+  }
+
+  String _formatDate(DateTime? date) {
+    if (date == null) return '';
     final day = date.day.toString().padLeft(2, '0');
     final month = date.month.toString().padLeft(2, '0');
     final year = date.year.toString();
@@ -180,9 +190,7 @@ class _QrPaymentPageState extends State<QrPaymentPage> {
 
   String _normalizeName(String input) {
     final cleaned = input.trim().toUpperCase();
-    if (cleaned.isEmpty) {
-      return 'VOICEBILL';
-    }
+    if (cleaned.isEmpty) return 'VOICEBILL';
     return cleaned.length > 25 ? cleaned.substring(0, 25) : cleaned;
   }
 
@@ -210,12 +218,12 @@ class _QrPaymentPageState extends State<QrPaymentPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.scaffoldBg,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: context.surface,
         elevation: 0,
-        surfaceTintColor: Colors.white,
-        foregroundColor: Colors.black87,
+        surfaceTintColor: context.surface,
+        foregroundColor: context.textPrimary,
         leading: IconButton(
           onPressed: () => Navigator.of(context).maybePop(),
           icon: const Icon(Icons.arrow_back),
@@ -240,19 +248,19 @@ class _QrPaymentPageState extends State<QrPaymentPage> {
                 child: Column(
                   children: [
                     const SizedBox(height: 4),
-                    const CircleAvatar(
-                      radius: 24,
-                      backgroundColor: Color(0xFF58C189),
-                      child: Icon(Icons.check, color: Colors.white, size: 28),
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: context.brand,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.check, color: Colors.white, size: 32),
                     ),
                     const SizedBox(height: 12),
-                    const Text(
+                    Text(
                       'Hóa đơn đã sẵn sàng',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
-                      ),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: context.textPrimary),
                     ),
                   ],
                 ),
@@ -263,6 +271,7 @@ class _QrPaymentPageState extends State<QrPaymentPage> {
               bill: widget.bill,
               dateText: _formatDate(widget.bill.createdAt),
               amountText: formatCurrency(widget.bill.total),
+              billIdLabel: _billIdLabel,
               onTap: _showInvoiceDetail,
             ),
             const SizedBox(height: 20),
@@ -316,26 +325,18 @@ class _QrPaymentPageState extends State<QrPaymentPage> {
                         size: 180,
                         backgroundColor: Colors.white,
                       )
-                    : const Icon(
-                        Icons.qr_code_2,
-                        size: 120,
-                        color: Color(0xFFBDBDBD),
-                      );
+                    : const Icon(Icons.qr_code_2, size: 120, color: Color(0xFFBDBDBD));
 
                 final bankLabel = profile.bankName.isNotEmpty
                     ? profile.bankName
-                    : (profile.bankShortName.isNotEmpty
-                          ? profile.bankShortName
-                          : 'Chưa có ngân hàng');
+                    : (profile.bankShortName.isNotEmpty ? profile.bankShortName : 'Chưa có ngân hàng');
 
                 return _QrCard(
                   onTap: () => _showLargeQr(qrWidget),
                   qrWidget: qrWidget,
                   bankLabel: bankLabel,
                   accountNumber: profile.accountNumber,
-                  accountName: profile.accountName.isNotEmpty
-                      ? profile.accountName
-                      : profile.storeName,
+                  accountName: profile.accountName.isNotEmpty ? profile.accountName : profile.storeName,
                   helperText: payload == null && !useImage
                       ? 'Vui lòng cập nhật ngân hàng trong Hồ sơ'
                       : 'Quét mã để thanh toán',
@@ -346,12 +347,10 @@ class _QrPaymentPageState extends State<QrPaymentPage> {
             ElevatedButton.icon(
               onPressed: _savePdf,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black87,
+                backgroundColor: context.brand,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 elevation: 0,
               ),
               icon: const Icon(Icons.save),
@@ -361,12 +360,10 @@ class _QrPaymentPageState extends State<QrPaymentPage> {
             OutlinedButton.icon(
               onPressed: _sharePdf,
               style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.black87,
+                foregroundColor: context.brand,
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                side: const BorderSide(color: Color(0xFFE5E5E5)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                side: BorderSide(color: context.brand),
               ),
               icon: const Icon(Icons.share),
               label: const Text('Chia sẻ PDF'),
@@ -376,10 +373,10 @@ class _QrPaymentPageState extends State<QrPaymentPage> {
               onPressed: () => Navigator.of(context).pushReplacement(
                 MaterialPageRoute(builder: (_) => const CreateBillPage()),
               ),
-              icon: const Icon(Icons.add, color: Colors.black87),
-              label: const Text(
+              icon: Icon(Icons.add, color: context.brand),
+              label: Text(
                 'Tạo hóa đơn mới',
-                style: TextStyle(color: Colors.black87),
+                style: TextStyle(color: context.brand, fontWeight: FontWeight.w600),
               ),
             ),
           ],
@@ -393,19 +390,21 @@ class _InvoiceCard extends StatelessWidget {
   final BillRecord bill;
   final String dateText;
   final String amountText;
+  final String billIdLabel;
   final VoidCallback onTap;
 
   const _InvoiceCard({
     required this.bill,
     required this.dateText,
     required this.amountText,
+    required this.billIdLabel,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: context.surface,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
@@ -413,7 +412,7 @@ class _InvoiceCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            border: Border.all(color: const Color(0xFFEFEFEF)),
+            border: Border.all(color: context.border),
             borderRadius: BorderRadius.circular(18),
           ),
           child: Column(
@@ -421,56 +420,32 @@ class _InvoiceCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Text('Mã: ${shortId(bill.id).toUpperCase()}'),
+                  Text(billIdLabel),
                   const Spacer(),
                   Text(
                     bill.status == 'debt' ? 'Ghi nợ' : 'Đã xác nhận',
-                    style: const TextStyle(color: Colors.black54),
+                    style: TextStyle(color: context.textSecondary),
                   ),
                 ],
               ),
               const SizedBox(height: 2),
-              Text(dateText, style: const TextStyle(color: Colors.black45)),
+              Text(dateText, style: TextStyle(color: context.textMuted)),
               const SizedBox(height: 12),
-              const Divider(color: Color(0xFFEDEDED)),
+              Divider(color: context.border),
               const SizedBox(height: 8),
               ...bill.items.map((item) {
-                final priceValue = _parsePriceToInt(item.price);
-                final totalValue = priceValue * item.quantity;
                 return _InvoiceLine(
                   name: item.name,
-                  detail: '${item.quantity} x ${formatCurrency(priceValue)}',
-                  total: formatCurrency(totalValue),
+                  detail: '${item.quantity} x ${formatCurrency(item.unitPrice)}',
+                  total: formatCurrency(item.subtotal),
                 );
               }),
               const SizedBox(height: 8),
-              const Divider(color: Color(0xFFEDEDED)),
+              Divider(color: context.border),
               const SizedBox(height: 8),
               Row(
                 children: [
-                  const Text(
-                    'Tạm tính',
-                    style: TextStyle(color: Colors.black54),
-                  ),
-                  const Spacer(),
-                  Text(amountText),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Row(
-                children: const [
-                  Text('Thuế (0%)', style: TextStyle(color: Colors.black54)),
-                  Spacer(),
-                  Text('0'),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  const Text(
-                    'Tổng cộng',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
+                  const Text('Tổng cộng', style: TextStyle(fontWeight: FontWeight.bold)),
                   const Spacer(),
                   Text(
                     amountText,
@@ -484,8 +459,6 @@ class _InvoiceCard extends StatelessWidget {
       ),
     );
   }
-
-  int _parsePriceToInt(String raw) => parsePriceToInt(raw);
 }
 
 class _InvoiceLine extends StatelessWidget {
@@ -493,11 +466,7 @@ class _InvoiceLine extends StatelessWidget {
   final String detail;
   final String total;
 
-  const _InvoiceLine({
-    required this.name,
-    required this.detail,
-    required this.total,
-  });
+  const _InvoiceLine({required this.name, required this.detail, required this.total});
 
   @override
   Widget build(BuildContext context) {
@@ -511,7 +480,7 @@ class _InvoiceLine extends StatelessWidget {
               children: [
                 Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 2),
-                Text(detail, style: const TextStyle(color: Colors.black45)),
+                Text(detail, style: TextStyle(color: context.textMuted)),
               ],
             ),
           ),
@@ -542,7 +511,7 @@ class _QrCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: context.surface,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
@@ -552,18 +521,15 @@ class _QrCard extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFFEFEFEF)),
+            border: Border.all(color: context.border),
           ),
           child: Column(
             children: [
-              Text(
-                helperText,
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
+              Text(helperText, style: const TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 14),
               SizedBox(width: 180, height: 180, child: qrWidget),
               const SizedBox(height: 12),
-              Text(bankLabel, style: const TextStyle(color: Colors.black54)),
+              Text(bankLabel, style: TextStyle(color: context.textSecondary)),
               const SizedBox(height: 6),
               Text(
                 accountNumber.isNotEmpty ? accountNumber : 'Chưa có STK',
@@ -572,7 +538,7 @@ class _QrCard extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 accountName.isNotEmpty ? accountName : 'Chưa có chủ TK',
-                style: const TextStyle(color: Colors.black45),
+                style: TextStyle(color: context.textMuted),
               ),
             ],
           ),

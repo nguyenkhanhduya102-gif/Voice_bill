@@ -3,9 +3,13 @@ import 'package:voice_bill/models/bill_models.dart';
 import 'package:voice_bill/pages/bill_detail_page.dart';
 import 'package:voice_bill/pages/create_bill_page.dart';
 import 'package:voice_bill/services/bill_service.dart';
+import 'package:voice_bill/services/export_service.dart';
+import 'package:voice_bill/utils/app_theme.dart';
 import 'package:voice_bill/utils/currency_formatter.dart';
 import 'package:voice_bill/utils/date_formatter.dart';
 import 'package:voice_bill/utils/short_id.dart';
+import 'package:voice_bill/widgets/empty_state.dart';
+import 'package:voice_bill/widgets/skeletons.dart';
 
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
@@ -18,7 +22,11 @@ class _HistoryPageState extends State<HistoryPage> {
   int _selectedTab = 0;
   bool _animateIn = false;
   final BillService _billService = BillService();
+  final ExportService _exportService = ExportService();
+  final GlobalKey<RefreshIndicatorState> _refreshKey = GlobalKey<RefreshIndicatorState>();
   String _searchQuery = '';
+  static const int _pageSize = 20;
+  int _displayCount = _pageSize;
 
   @override
   void initState() {
@@ -30,11 +38,7 @@ class _HistoryPageState extends State<HistoryPage> {
     });
   }
 
-  void _showSnack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
-    );
-  }
+  static Widget _skeletonBuilder(int index) => const BillCardSkeleton();
 
   Future<void> _openSearch() async {
     final controller = TextEditingController(text: _searchQuery);
@@ -61,26 +65,41 @@ class _HistoryPageState extends State<HistoryPage> {
       },
     );
 
-    if (result == null) {
-      return;
+    if (result == null) return;
+    setState(() {
+      _searchQuery = result.trim();
+      _displayCount = _pageSize;
+    });
+  }
+
+  Future<void> _onRefresh() async {
+    setState(() => _displayCount = _pageSize);
+  }
+
+  Future<void> _exportCsv() async {
+    try {
+      final path = await _exportService.exportBillsToCsv();
+      _showSnack('Đã xuất: $path');
+    } catch (_) {
+      _showSnack('Không thể xuất dữ liệu');
     }
-    setState(() => _searchQuery = result.trim());
+  }
+
+  void _showSnack(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        surfaceTintColor: Colors.white,
-        foregroundColor: Colors.black87,
-        title: const Text(
-          'Lịch sử hóa đơn',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-        ),
+        title: const Text('Lịch sử hóa đơn'),
         actions: [
+          IconButton(onPressed: _exportCsv, icon: const Icon(Icons.file_download)),
           IconButton(onPressed: _openSearch, icon: const Icon(Icons.search)),
           const SizedBox(width: 8),
         ],
@@ -104,17 +123,32 @@ class _HistoryPageState extends State<HistoryPage> {
                       _HistoryChip(
                         label: 'Tất cả',
                         selected: _selectedTab == 0,
-                        onTap: () => setState(() => _selectedTab = 0),
+                        onTap: () {
+                          setState(() {
+                            _selectedTab = 0;
+                            _displayCount = _pageSize;
+                          });
+                        },
                       ),
                       _HistoryChip(
                         label: 'Đã thanh toán',
                         selected: _selectedTab == 1,
-                        onTap: () => setState(() => _selectedTab = 1),
+                        onTap: () {
+                          setState(() {
+                            _selectedTab = 1;
+                            _displayCount = _pageSize;
+                          });
+                        },
                       ),
                       _HistoryChip(
                         label: 'Ghi nợ',
                         selected: _selectedTab == 2,
-                        onTap: () => setState(() => _selectedTab = 2),
+                        onTap: () {
+                          setState(() {
+                            _selectedTab = 2;
+                            _displayCount = _pageSize;
+                          });
+                        },
                       ),
                     ],
                   ),
@@ -125,6 +159,15 @@ class _HistoryPageState extends State<HistoryPage> {
               child: StreamBuilder<List<BillRecord>>(
                 stream: _billService.streamBills(),
                 builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: const ListSkeleton(
+                        itemBuilder: _skeletonBuilder,
+                      ),
+                    );
+                  }
+
                   if (snapshot.hasError) {
                     return Center(
                       child: Text(
@@ -138,18 +181,12 @@ class _HistoryPageState extends State<HistoryPage> {
                   final allItems = snapshot.data ?? [];
                   final filtered = allItems
                       .where((bill) {
-                        if (_selectedTab == 1) {
-                          return bill.status == 'paid';
-                        }
-                        if (_selectedTab == 2) {
-                          return bill.status == 'debt';
-                        }
+                        if (_selectedTab == 1) return bill.status == 'paid';
+                        if (_selectedTab == 2) return bill.status == 'debt';
                         return true;
                       })
                       .where((bill) {
-                        if (_searchQuery.isEmpty) {
-                          return true;
-                        }
+                        if (_searchQuery.isEmpty) return true;
                         final query = _searchQuery.toLowerCase();
                         final idMatch = bill.id.toLowerCase().contains(query);
                         final itemMatch = bill.items.any(
@@ -159,38 +196,91 @@ class _HistoryPageState extends State<HistoryPage> {
                       })
                       .toList();
 
+                  final displayItems = filtered.take(_displayCount).toList();
+                  final hasMore = _displayCount < filtered.length;
+
                   if (filtered.isEmpty) {
-                    return const Center(
-                      child: Text(
-                        'Chưa có hóa đơn nào',
-                        style: TextStyle(color: Colors.black45),
+                    // Trống hẳn (chưa có hóa đơn) khác với lọc/tìm không ra.
+                    final noInvoicesAtAll =
+                        allItems.isEmpty && _searchQuery.isEmpty;
+                    return RefreshIndicator(
+                      key: _refreshKey,
+                      onRefresh: _onRefresh,
+                      child: ListView(
+                        children: [
+                          SizedBox(
+                              height: MediaQuery.of(context).size.height * 0.1),
+                          noInvoicesAtAll
+                              ? EmptyState(
+                                  icon: Icons.receipt_long_outlined,
+                                  title: 'Chưa có hóa đơn nào',
+                                  message:
+                                      'Tạo hóa đơn đầu tiên bằng giọng nói — nhanh và dễ.',
+                                  actionLabel: 'Tạo hóa đơn',
+                                  actionIcon: Icons.mic,
+                                  onAction: () => Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => const CreateBillPage(),
+                                    ),
+                                  ),
+                                )
+                              : const EmptyState(
+                                  icon: Icons.search_off,
+                                  title: 'Không có hóa đơn phù hợp',
+                                  message:
+                                      'Thử đổi bộ lọc hoặc từ khóa tìm kiếm.',
+                                ),
+                        ],
                       ),
                     );
                   }
 
-                  return ListView.separated(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 10,
-                    ),
-                    itemCount: filtered.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 14),
-                    itemBuilder: (context, index) {
-                      final item = filtered[index];
-                      return _HistoryCard(
-                        item: item,
-                        dateText: formatDate(item.createdAt),
-                        amountText: formatCurrency(item.total),
-                        statusText: item.status == 'debt'
-                            ? 'Ghi nợ'
-                            : 'Đã thanh toán',
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => BillDetailPage(bill: item),
+                  return RefreshIndicator(
+                    key: _refreshKey,
+                    onRefresh: _onRefresh,
+                    child: ListView(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 10,
+                      ),
+                      children: [
+                        ...displayItems.map((item) => Padding(
+                          padding: const EdgeInsets.only(bottom: 14),
+                          child: _HistoryCard(
+                            item: item,
+                            dateText: formatDate(item.createdAt),
+                            amountText: formatCurrency(item.total),
+                            statusText: item.status == 'debt'
+                                ? 'Ghi nợ'
+                                : 'Đã thanh toán',
+                            isDark: isDark,
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => BillDetailPage(bill: item),
+                              ),
+                            ),
                           ),
-                        ),
-                      );
-                    },
+                        )),
+                        if (hasMore)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: TextButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _displayCount += _pageSize;
+                                  });
+                                },
+                                child: Text(
+                                  'Xem thêm (${filtered.length - _displayCount} còn lại)',
+                                ),
+                              ),
+                            ),
+                          ),
+                        const SizedBox(height: 80),
+                      ],
+                    ),
                   );
                 },
               ),
@@ -199,10 +289,9 @@ class _HistoryPageState extends State<HistoryPage> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (_) => const CreateBillPage())),
-        backgroundColor: Colors.black87,
+        onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const CreateBillPage()),
+        ),
         child: const Icon(Icons.mic, color: Colors.white),
       ),
     );
@@ -226,11 +315,15 @@ class _HistoryChip extends StatelessWidget {
       label: Text(label),
       selected: selected,
       onSelected: (_) => onTap(),
-      selectedColor: const Color(0xFFF2F2F2),
-      backgroundColor: Colors.white,
-      side: const BorderSide(color: Color(0xFFE5E5E5)),
+      selectedColor: context.isDark
+          ? const Color(0xFF2E4D33)
+          : const Color(0xFFE8F5E9),
+      backgroundColor: context.surface,
+      side: BorderSide(
+        color: selected ? context.brand : context.border,
+      ),
       labelStyle: TextStyle(
-        color: selected ? Colors.black87 : Colors.black54,
+        color: selected ? context.brand : context.textSecondary,
         fontWeight: FontWeight.w600,
       ),
     );
@@ -242,6 +335,7 @@ class _HistoryCard extends StatelessWidget {
   final String dateText;
   final String amountText;
   final String statusText;
+  final bool isDark;
   final VoidCallback onTap;
 
   const _HistoryCard({
@@ -249,13 +343,14 @@ class _HistoryCard extends StatelessWidget {
     required this.dateText,
     required this.amountText,
     required this.statusText,
+    required this.isDark,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
@@ -263,45 +358,54 @@ class _HistoryCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            border: Border.all(color: const Color(0xFFEFEFEF)),
+            border: Border.all(
+              color: isDark ? const Color(0xFF2E2E2E) : const Color(0xFFEFEFEF),
+            ),
             borderRadius: BorderRadius.circular(18),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                  'HĐ ${shortId(item.id).toUpperCase()}',
-                style: const TextStyle(
+                'HĐ ${shortId(item.id).toUpperCase()}',
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: Colors.black87,
+                  color: isDark ? Colors.white70 : const Color(0xFF1D1D1D),
                 ),
               ),
               const SizedBox(height: 10),
               Text(
                 statusText,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  color: item.status == 'debt'
+                      ? const Color(0xFFE65100)
+                      : const Color(0xFF2E7D32),
                 ),
               ),
               const SizedBox(height: 6),
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.calendar_today,
                     size: 14,
-                    color: Colors.black45,
+                    color: isDark ? Colors.white38 : Colors.black45,
                   ),
                   const SizedBox(width: 6),
-                  Text(dateText, style: const TextStyle(color: Colors.black45)),
+                  Text(
+                    dateText,
+                    style: TextStyle(
+                      color: isDark ? Colors.white38 : Colors.black45,
+                    ),
+                  ),
                   const Spacer(),
                   Text(
                     amountText,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: isDark ? Colors.white : const Color(0xFF1D1D1D),
                     ),
                   ),
                 ],
@@ -309,7 +413,9 @@ class _HistoryCard extends StatelessWidget {
               const SizedBox(height: 12),
               Text(
                 '${item.items.length} mặt hàng',
-                style: const TextStyle(color: Colors.black45),
+                style: TextStyle(
+                  color: isDark ? Colors.white38 : Colors.black45,
+                ),
               ),
             ],
           ),

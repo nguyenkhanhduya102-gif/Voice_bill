@@ -120,9 +120,7 @@ class ProfileService {
     String? qrMode,
   }) async {
     final user = _auth.currentUser;
-    if (user == null) {
-      throw StateError('User not signed in');
-    }
+    if (user == null) throw StateError('User not signed in');
 
     await _firestore.collection('users').doc(user.uid).set({
       'displayName': displayName,
@@ -143,9 +141,7 @@ class ProfileService {
 
   Future<String> uploadAvatar(XFile file) async {
     final user = _auth.currentUser;
-    if (user == null) {
-      throw StateError('User not signed in');
-    }
+    if (user == null) throw StateError('User not signed in');
 
     final ref = _storage
         .ref()
@@ -163,9 +159,7 @@ class ProfileService {
 
   Future<String> uploadQrImage(XFile file) async {
     final user = _auth.currentUser;
-    if (user == null) {
-      throw StateError('User not signed in');
-    }
+    if (user == null) throw StateError('User not signed in');
 
     final ref = _storage
         .ref()
