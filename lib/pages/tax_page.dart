@@ -142,6 +142,8 @@ class _TaxPageState extends State<TaxPage> {
         const SizedBox(height: 14),
         _ObligationCard(summary: s),
         const SizedBox(height: 14),
+        _MonthlyCard(summary: s),
+        const SizedBox(height: 14),
         _ExportButton(
           exporting: _exporting,
           onExport: () => _export(s),
@@ -458,6 +460,69 @@ class _ExportButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 14),
         shape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+    );
+  }
+}
+
+class _MonthlyCard extends StatelessWidget {
+  final TaxYearSummary summary;
+  const _MonthlyCard({required this.summary});
+
+  @override
+  Widget build(BuildContext context) {
+    final months = aggregateByMonth(summary.bills)
+        .where((m) => m.count > 0)
+        .toList();
+    if (months.isEmpty) return const SizedBox.shrink();
+    final maxTotal = months.fold<int>(0, (mx, m) => m.total > mx ? m.total : mx);
+
+    return _Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Doanh thu theo tháng',
+            style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: context.textPrimary),
+          ),
+          const SizedBox(height: 12),
+          for (final m in months) ...[
+            Row(
+              children: [
+                SizedBox(
+                  width: 44,
+                  child: Text('Th ${m.month}',
+                      style: TextStyle(
+                          fontSize: 13, color: context.textSecondary)),
+                ),
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: LinearProgressIndicator(
+                      value: maxTotal == 0 ? 0 : m.total / maxTotal,
+                      minHeight: 10,
+                      backgroundColor: context.surfaceAlt,
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(context.brand),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  formatCurrency(m.total),
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: context.textPrimary),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+          ],
+        ],
       ),
     );
   }

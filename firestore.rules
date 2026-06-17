@@ -32,6 +32,7 @@ service cloud.firestore {
           && optString(data, 'phone', 30)
           && optString(data, 'storeName', 120)
           && optString(data, 'address', 200)
+          && optString(data, 'taxCode', 30)
           && optString(data, 'photoUrl', 500)
           && optString(data, 'bankName', 80)
           && optString(data, 'bankShortName', 20)
@@ -62,6 +63,11 @@ service cloud.firestore {
           && data.total >= 0
           && (data.status is string)
           && (data.status in ['paid', 'debt'])
+          && optString(data, 'paymentMethod', 20)
+          && optString(data, 'sellerName', 120)
+          && optString(data, 'sellerTaxCode', 30)
+          && optString(data, 'sellerAddress', 200)
+          && optString(data, 'sellerPhone', 30)
           && optTimestamp(data, 'createdAt')
           && optTimestamp(data, 'updatedAt')
           && optTimestamp(data, 'clientCreatedAt');

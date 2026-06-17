@@ -17,7 +17,10 @@ import 'package:voice_bill/utils/short_id.dart';
 class QrPaymentPage extends StatefulWidget {
   final BillRecord bill;
 
-  const QrPaymentPage({super.key, required this.bill});
+  /// Hiện mã QR chuyển khoản. Tiền mặt/ghi nợ -> false (chỉ là màn "đã lưu").
+  final bool showQr;
+
+  const QrPaymentPage({super.key, required this.bill, this.showQr = true});
 
   @override
   State<QrPaymentPage> createState() => _QrPaymentPageState();
@@ -259,7 +262,9 @@ class _QrPaymentPageState extends State<QrPaymentPage> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'Hóa đơn đã sẵn sàng',
+                      widget.showQr
+                          ? 'Quét mã để thanh toán'
+                          : 'Đã lưu • ${paymentLabel(widget.bill.status, widget.bill.paymentMethod)}',
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: context.textPrimary),
                     ),
                   ],
@@ -274,6 +279,7 @@ class _QrPaymentPageState extends State<QrPaymentPage> {
               billIdLabel: _billIdLabel,
               onTap: _showInvoiceDetail,
             ),
+            if (widget.showQr) ...[
             const SizedBox(height: 20),
             StreamBuilder<UserProfile>(
               stream: _profileService.streamProfile(),
@@ -343,6 +349,7 @@ class _QrPaymentPageState extends State<QrPaymentPage> {
                 );
               },
             ),
+            ],
             const SizedBox(height: 20),
             ElevatedButton.icon(
               onPressed: _savePdf,

@@ -6,7 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Dùng như một ValueNotifier: MaterialApp lắng nghe để đổi themeMode;
 /// nút toggle trong Profile gọi [toggle]/[setMode].
 class ThemeController extends ValueNotifier<ThemeMode> {
-  ThemeController() : super(ThemeMode.system);
+  // Mặc định giao diện SÁNG (dễ nhìn cho phần đông người dùng lớn tuổi).
+  ThemeController() : super(ThemeMode.light);
 
   static const _prefKey = 'theme_mode';
 
@@ -15,17 +16,17 @@ class ThemeController extends ValueNotifier<ThemeMode> {
     try {
       final prefs = await SharedPreferences.getInstance();
       switch (prefs.getString(_prefKey)) {
-        case 'light':
-          value = ThemeMode.light;
-          break;
         case 'dark':
           value = ThemeMode.dark;
           break;
-        default:
+        case 'system':
           value = ThemeMode.system;
+          break;
+        default:
+          value = ThemeMode.light;
       }
     } catch (_) {
-      value = ThemeMode.system;
+      value = ThemeMode.light;
     }
   }
 
@@ -84,6 +85,64 @@ class TextScaleController extends ValueNotifier<double> {
 
 /// Instance dùng chung toàn app.
 final textScaleController = TextScaleController();
+
+/// Theo dõi đã xem hướng dẫn ban đầu chưa (hiện onboarding cho lần đầu mở app).
+class OnboardingController extends ValueNotifier<bool> {
+  OnboardingController() : super(false); // false = chưa xem
+
+  static const _prefKey = 'onboarding_seen';
+
+  Future<void> load() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      value = prefs.getBool(_prefKey) ?? false;
+    } catch (_) {
+      value = false;
+    }
+  }
+
+  Future<void> markSeen() async {
+    value = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_prefKey, true);
+    } catch (_) {
+      // Không lưu được thì phiên sau hiện lại — chấp nhận được.
+    }
+  }
+}
+
+/// Instance dùng chung toàn app.
+final onboardingController = OnboardingController();
+
+/// Theo dõi đã xem chỉ dẫn trên màn hình (coach marks) lần đầu vào màn chính chưa.
+class CoachController extends ValueNotifier<bool> {
+  CoachController() : super(false); // false = chưa xem
+
+  static const _prefKey = 'coach_seen';
+
+  Future<void> load() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      value = prefs.getBool(_prefKey) ?? false;
+    } catch (_) {
+      value = false;
+    }
+  }
+
+  Future<void> markSeen() async {
+    value = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_prefKey, true);
+    } catch (_) {
+      // bỏ qua
+    }
+  }
+}
+
+/// Instance dùng chung toàn app.
+final coachController = CoachController();
 
 /// Bảng màu ngữ nghĩa theo brightness — thay cho việc hardcode Colors.white /
 /// Colors.black ở từng widget. Dùng: `context.surface`, `context.textPrimary`...

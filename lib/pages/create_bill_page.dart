@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:voice_bill/models/bill_models.dart';
 import 'package:voice_bill/models/product_item.dart';
 import 'package:voice_bill/pages/qr_payment_page.dart';
@@ -14,7 +15,10 @@ import 'package:voice_bill/utils/price_parser.dart';
 import 'package:voice_bill/widgets/voice_recorder_overlay.dart';
 
 class CreateBillPage extends StatefulWidget {
-  const CreateBillPage({super.key});
+  /// Tự bật nghe ngay khi mở trang (cho lối "1 chạm" từ trang chủ / tab bán hàng).
+  final bool autoStartListening;
+
+  const CreateBillPage({super.key, this.autoStartListening = false});
 
   @override
   State<CreateBillPage> createState() => _CreateBillPageState();
@@ -39,6 +43,12 @@ class _CreateBillPageState extends State<CreateBillPage> {
     Future.microtask(() {
       if (mounted) setState(() => _animateIn = true);
     });
+    // Lối "1 chạm": vào trang là nghe luôn, không cần bấm mic lần nữa.
+    if (widget.autoStartListening) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _toggleListening();
+      });
+    }
   }
 
   @override
@@ -150,6 +160,7 @@ class _CreateBillPageState extends State<CreateBillPage> {
             quantity: quantity <= 0 ? 1 : quantity,
             unitPrice: price < 0 ? 0 : price,
             productId: product?.id,
+            unit: product?.unit ?? '',
           );
         })
         .whereType<BillItem>()
@@ -256,14 +267,16 @@ class _CreateBillPageState extends State<CreateBillPage> {
         unitPrice: price,
         // Tên có thể đã đổi -> resolve lại; giữ productId cũ nếu vẫn khớp.
         productId: _resolveProductId(name) ?? item.productId,
+        unit: _resolveProduct(name)?.unit ?? item.unit,
       ),
     );
   }
 
-  /// Hiển thị bảng tóm tắt để người bán soát lại trước khi lưu + trừ kho.
-  Future<bool?> _showConfirmSheet() {
+  /// Hiển thị bảng tóm tắt + chọn phương thức thanh toán.
+  /// Trả về: 'cash' | 'transfer' | 'debt' | null (hủy).
+  Future<String?> _showConfirmSheet() {
     final hasZeroPrice = _sellItems.any((i) => i.unitPrice <= 0);
-    return showModalBottomSheet<bool>(
+    return showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
@@ -336,22 +349,38 @@ class _CreateBillPageState extends State<CreateBillPage> {
                   ),
                 ],
                 const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.of(context).pop(false),
-                        child: const Text('Quay lại'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () => Navigator.of(context).pop(true),
-                        child: const Text('Lưu hóa đơn'),
-                      ),
-                    ),
-                  ],
+                Text(
+                  'Chọn phương thức thanh toán',
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: context.textSecondary),
+                ),
+                const SizedBox(height: 10),
+                _PayButton(
+                  icon: Icons.payments_outlined,
+                  label: 'Tiền mặt',
+                  onTap: () => Navigator.of(context).pop('cash'),
+                ),
+                const SizedBox(height: 8),
+                _PayButton(
+                  icon: Icons.account_balance_outlined,
+                  label: 'Chuyển khoản',
+                  onTap: () => Navigator.of(context).pop('transfer'),
+                ),
+                const SizedBox(height: 8),
+                _PayButton(
+                  icon: Icons.schedule_outlined,
+                  label: 'Ghi nợ',
+                  outlined: true,
+                  onTap: () => Navigator.of(context).pop('debt'),
+                ),
+                const SizedBox(height: 6),
+                Center(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Quay lại'),
+                  ),
                 ),
               ],
             ),
@@ -368,18 +397,34 @@ class _CreateBillPageState extends State<CreateBillPage> {
       return;
     }
 
-    final ok = await _showConfirmSheet();
-    if (ok != true) return;
+    final method = await _showConfirmSheet();
+    if (method == null) return;
+
+    // 'debt' -> ghi nợ (chưa thu); 'cash'/'transfer' -> đã thu kèm phương thức.
+    final status = method == 'debt' ? 'debt' : 'paid';
+    final paymentMethod = method == 'debt' ? '' : method;
 
     setState(() => _submitting = true);
     _showSnack('Đang lưu hóa đơn...');
     try {
       final bill = await _billService
-          .createBill(items: _sellItems, total: _totalValue)
+          .createBill(
+            items: _sellItems,
+            total: _totalValue,
+            status: status,
+            paymentMethod: paymentMethod,
+          )
           .timeout(const Duration(seconds: 15));
       if (!mounted) return;
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => QrPaymentPage(bill: bill)),
+      HapticFeedback.mediumImpact(); // báo đã lưu xong cho người mắt kém
+      // Chỉ chuyển khoản mới cần QR; tiền mặt/ghi nợ -> màn "đã lưu" gọn.
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => QrPaymentPage(
+            bill: bill,
+            showQr: paymentMethod == 'transfer',
+          ),
+        ),
       );
     } on TimeoutException {
       _showSnack('Lưu hóa đơn bị timeout, thử lại');
@@ -391,11 +436,41 @@ class _CreateBillPageState extends State<CreateBillPage> {
     }
   }
 
+  Future<bool> _confirmDiscard() async {
+    final leave = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Bỏ đơn đang tạo?'),
+        content: const Text(
+            'Đơn này chưa lưu. Thoát ra sẽ mất các mặt hàng đã thêm.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Ở lại'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            child: const Text('Bỏ đơn'),
+          ),
+        ],
+      ),
+    );
+    return leave ?? false;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: context.scaffoldBg,
-      body: SafeArea(
+    return PopScope(
+      canPop: _sellItems.isEmpty || _submitting,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        final leave = await _confirmDiscard();
+        if (leave && context.mounted) Navigator.of(context).pop();
+      },
+      child: Scaffold(
+        backgroundColor: context.scaffoldBg,
+        body: SafeArea(
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 520),
@@ -675,6 +750,7 @@ class _CreateBillPageState extends State<CreateBillPage> {
           ],
         ),
       ),
+      ),
     );
   }
 }
@@ -738,15 +814,83 @@ class _BillItemTile extends StatelessWidget {
                     ],
                   ),
                 ),
-                Text(
-                  formatCurrency(item.subtotal),
-                  style: TextStyle(fontWeight: FontWeight.bold, color: context.textPrimary),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      formatCurrency(item.subtotal),
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: context.textPrimary),
+                    ),
+                    const SizedBox(height: 4),
+                    Icon(Icons.edit, size: 15, color: context.textMuted),
+                  ],
                 ),
               ],
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Nút chọn phương thức thanh toán (to, rõ — hợp người lớn tuổi).
+class _PayButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool outlined;
+
+  const _PayButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.outlined = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final child = Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(icon, size: 22),
+        const SizedBox(width: 10),
+        Text(label),
+      ],
+    );
+    final padding = const EdgeInsets.symmetric(vertical: 15);
+    final shape =
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(14));
+    final textStyle =
+        const TextStyle(fontSize: 17, fontWeight: FontWeight.w700);
+
+    return SizedBox(
+      width: double.infinity,
+      child: outlined
+          ? OutlinedButton(
+              onPressed: onTap,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: context.brand,
+                side: BorderSide(color: context.brand),
+                padding: padding,
+                shape: shape,
+                textStyle: textStyle,
+              ),
+              child: child,
+            )
+          : ElevatedButton(
+              onPressed: onTap,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: context.brand,
+                foregroundColor: Colors.white,
+                padding: padding,
+                shape: shape,
+                textStyle: textStyle,
+              ),
+              child: child,
+            ),
     );
   }
 }

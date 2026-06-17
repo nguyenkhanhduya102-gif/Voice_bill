@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:voice_bill/pages/onboarding_page.dart';
 import 'package:voice_bill/pages/tax_page.dart';
 import 'package:voice_bill/services/auth_service.dart';
 import 'package:voice_bill/services/bill_service.dart';
@@ -22,11 +24,13 @@ class _ProfilePageState extends State<ProfilePage> {
   final ProductService _productService = ProductService();
   final BillService _billService = BillService();
   final ImagePicker _imagePicker = ImagePicker();
+  
 
   final TextEditingController _displayNameController = TextEditingController();
   final TextEditingController _storeController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
+  final TextEditingController _taxCodeController = TextEditingController();
   final TextEditingController _accountNameController = TextEditingController();
   final TextEditingController _accountNumberController =TextEditingController();
   bool _initialized = false;
@@ -56,6 +60,7 @@ class _ProfilePageState extends State<ProfilePage> {
         storeName: _storeController.text.trim(),
         phone: _phoneController.text.trim(),
         address: _addressController.text.trim(),
+        taxCode: _taxCodeController.text.trim(),
         bankName: _selectedBank?.name,
         bankShortName: _selectedBank?.shortName,
         bankBin: _selectedBank?.bin,
@@ -63,6 +68,7 @@ class _ProfilePageState extends State<ProfilePage> {
         accountName: _accountNameController.text.trim(),
         qrMode: _useQrImage ? 'image' : 'auto',
       );
+      HapticFeedback.mediumImpact();
       _showSnack('Đã lưu thông tin');
     } catch (_) {
       _showSnack('Không thể lưu thông tin');
@@ -238,9 +244,68 @@ class _ProfilePageState extends State<ProfilePage> {
     _storeController.dispose();
     _phoneController.dispose();
     _addressController.dispose();
+    _taxCodeController.dispose();
     _accountNameController.dispose();
     _accountNumberController.dispose();
     super.dispose();
+  }
+
+  /// Thẻ nhóm cài đặt: tiêu đề + icon + nội dung.
+  Widget _card({
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: context.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: context.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 20, color: context.brand),
+              const SizedBox(width: 10),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: context.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  /// Nút lưu to, rõ — đặt ngay trong thẻ để người lớn tuổi thấy.
+  Widget _saveButton(String label) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: _saving ? null : _saveProfile,
+        icon: _saving
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.white),
+              )
+            : const Icon(Icons.check),
+        label: Text(label),
+      ),
+    );
   }
 
   @override
@@ -256,29 +321,22 @@ class _ProfilePageState extends State<ProfilePage> {
           onPressed: () => Navigator.of(context).maybePop(),
           icon: const Icon(Icons.arrow_back),
         ),
-        actions: [
-          TextButton.icon(
-            onPressed: _saving ? null : _saveProfile,
-            icon: _saving
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.check, size: 18),
-            label: const Text('Lưu'),
-            style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFF2E7D32),
-              textStyle: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-          ),
-          const SizedBox(width: 8),
-        ],
+        title: const Text(
+          'Cài đặt',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
       ),
       body: SafeArea(
         child: StreamBuilder<UserProfile>(
           stream: _profileService.streamProfile(),
           builder: (context, snapshot) {
+            // Chờ tải lần đầu -> hiện loader, tránh việc đổ dữ liệu muộn ghi đè
+            // lên chữ người dùng vừa gõ (bug lưu không ăn).
+            if (!_initialized &&
+                snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
             final profile =
                 snapshot.data ??
                 const UserProfile(
@@ -296,25 +354,23 @@ class _ProfilePageState extends State<ProfilePage> {
                   qrMode: 'auto',
                 );
 
-            if (!_initialized && snapshot.hasData) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                _displayNameController.text = profile.displayName;
-                _storeController.text = profile.storeName;
-                _phoneController.text = profile.phone;
-                _addressController.text = profile.address;
-                _accountNameController.text = profile.accountName;
-                _accountNumberController.text = profile.accountNumber;
-                _useQrImage = profile.qrMode == 'image';
-                if (_selectedBank == null && profile.bankBin.isNotEmpty) {
-                  _selectedBank = _banks.firstWhere(
-                    (bank) => bank.bin == profile.bankBin,
-                    orElse: () => _banks.first,
-                  );
-                }
-                if (mounted) {
-                  setState(() => _initialized = true);
-                }
-              });
+            // Đổ dữ liệu vào ô đúng MỘT lần khi doc đã tải xong.
+            if (!_initialized) {
+              _displayNameController.text = profile.displayName;
+              _storeController.text = profile.storeName;
+              _phoneController.text = profile.phone;
+              _addressController.text = profile.address;
+              _taxCodeController.text = profile.taxCode;
+              _accountNameController.text = profile.accountName;
+              _accountNumberController.text = profile.accountNumber;
+              _useQrImage = profile.qrMode == 'image';
+              if (_selectedBank == null && profile.bankBin.isNotEmpty) {
+                _selectedBank = _banks.firstWhere(
+                  (bank) => bank.bin == profile.bankBin,
+                  orElse: () => _banks.first,
+                );
+              }
+              _initialized = true;
             }
 
             final avatarText =
@@ -354,7 +410,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           children: [
                               CircleAvatar(
                               radius: 32,
-                              backgroundColor: const Color(0xFF2E7D32),
+                              backgroundColor: context.brand,
                               child: Text(
                                 initials,
                                 style: const TextStyle(
@@ -408,63 +464,59 @@ class _ProfilePageState extends State<ProfilePage> {
                           width: 32,
                           height: 32,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFE8F5E9),
+                            color: context.surfaceAlt,
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.edit,
                             size: 16,
-                            color: Color(0xFF2E7D32),
+                            color: context.brand,
                           ),
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 20),
-                Text(
-                  'THÔNG TIN CÁ NHÂN',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: context.textMuted,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _InputField(
-                  controller: _displayNameController,
-                  label: 'Tên người dùng',
-                  icon: Icons.person,
-                ),
                 const SizedBox(height: 16),
-                Text(
-                  'THÔNG TIN CỬA HÀNG',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: context.textMuted,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _InputField(
-                  controller: _storeController,
-                  label: 'Tên cửa hàng',
+                _card(
+                  title: 'Thông tin cửa hàng',
                   icon: Icons.storefront,
+                  children: [
+                    _InputField(
+                      controller: _displayNameController,
+                      label: 'Tên của bạn',
+                      icon: Icons.person,
+                    ),
+                    const SizedBox(height: 12),
+                    _InputField(
+                      controller: _storeController,
+                      label: 'Tên cửa hàng',
+                      icon: Icons.storefront,
+                    ),
+                    const SizedBox(height: 12),
+                    _InputField(
+                      controller: _phoneController,
+                      label: 'Số điện thoại',
+                      icon: Icons.phone,
+                      keyboardType: TextInputType.phone,
+                    ),
+                    const SizedBox(height: 12),
+                    _InputField(
+                      controller: _addressController,
+                      label: 'Địa chỉ',
+                      icon: Icons.location_on,
+                    ),
+                    const SizedBox(height: 12),
+                    _InputField(
+                      controller: _taxCodeController,
+                      label: 'Mã số thuế (nếu có)',
+                      icon: Icons.badge_outlined,
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 16),
+                    _saveButton('Lưu thông tin'),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                _InputField(
-                  controller: _phoneController,
-                  label: 'Số điện thoại',
-                  icon: Icons.phone,
-                  keyboardType: TextInputType.phone,
-                ),
-                const SizedBox(height: 12),
-                _InputField(
-                  controller: _addressController,
-                  label: 'Địa chỉ',
-                  icon: Icons.location_on,
-                ),
-                const SizedBox(height: 20),
                 Container(
                   decoration: BoxDecoration(
                     color: context.surface,
@@ -483,195 +535,184 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
-                Divider(color: context.border),
-                const SizedBox(height: 8),
-                Text(
-                  'THANH TOÁN & MÃ QR',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: context.textMuted,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: context.border),
-                  ),
-                  child: Column(
-                    children: [
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.account_balance),
-                        title: const Text('Ngân hàng'),
-                        subtitle: Text(
-                          _selectedBank?.name ??
-                              (profile.bankName.isNotEmpty
-                                  ? profile.bankName
-                                  : 'Chọn ngân hàng'),
-                        ),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: _pickBank,
+                const SizedBox(height: 16),
+                _card(
+                  title: 'Thanh toán (QR chuyển khoản)',
+                  icon: Icons.account_balance,
+                  children: [
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading:
+                          Icon(Icons.account_balance, color: context.brand),
+                      title: const Text('Ngân hàng'),
+                      subtitle: Text(
+                        _selectedBank?.name ??
+                            (profile.bankName.isNotEmpty
+                                ? profile.bankName
+                                : 'Chọn ngân hàng'),
                       ),
-                      const SizedBox(height: 8),
-                      _InputField(
-                        controller: _accountNumberController,
-                        label: 'Số tài khoản',
-                        icon: Icons.account_balance_wallet,
-                        keyboardType: TextInputType.number,
-                      ),
-                      const SizedBox(height: 12),
-                      _InputField(
-                        controller: _accountNameController,
-                        label: 'Chủ tài khoản',
-                        icon: Icons.person_outline,
-                      ),
-                      const SizedBox(height: 10),
-                      SwitchListTile.adaptive(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Dùng ảnh QR tải lên'),
-                        value: _useQrImage,
-                        onChanged: (value) {
-                          setState(() => _useQrImage = value);
-                        },
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: _uploadingQr
-                                  ? null
-                                  : () => _pickQrImage(profile),
-                              icon: _uploadingQr
-                                  ? const SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : const Icon(Icons.upload),
-                              label: const Text('Tải ảnh QR'),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: const Color(0xFF2E7D32),
-                                side: const BorderSide(
-                                  color: Color(0xFF2E7D32),
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 12,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: _pickBank,
+                    ),
+                    const SizedBox(height: 8),
+                    _InputField(
+                      controller: _accountNumberController,
+                      label: 'Số tài khoản',
+                      icon: Icons.account_balance_wallet,
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 12),
+                    _InputField(
+                      controller: _accountNameController,
+                      label: 'Chủ tài khoản',
+                      icon: Icons.person_outline,
+                    ),
+                    const SizedBox(height: 6),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Dùng ảnh QR tải lên'),
+                      value: _useQrImage,
+                      onChanged: (value) {
+                        setState(() => _useQrImage = value);
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _uploadingQr
+                                ? null
+                                : () => _pickQrImage(profile),
+                            icon: _uploadingQr
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.upload),
+                            label: const Text('Tải ảnh QR'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: context.brand,
+                              side: BorderSide(color: context.brand),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
                               ),
                             ),
                           ),
-                          if (profile.qrImageUrl.isNotEmpty) ...[
-                            const SizedBox(width: 12),
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
-                              child: Image.network(
-                                profile.qrImageUrl,
-                                width: 48,
-                                height: 48,
-                                fit: BoxFit.cover,
-                              ),
+                        ),
+                        if (profile.qrImageUrl.isNotEmpty) ...[
+                          const SizedBox(width: 12),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.network(
+                              profile.qrImageUrl,
+                              width: 48,
+                              height: 48,
+                              fit: BoxFit.cover,
                             ),
-                          ],
+                          ),
                         ],
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    _saveButton('Lưu thanh toán'),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                ValueListenableBuilder<ThemeMode>(
-                  valueListenable: themeController,
-                  builder: (context, mode, _) {
-                    final isDarkNow =
-                        Theme.of(context).brightness == Brightness.dark;
-                    return Container(
-                      decoration: BoxDecoration(
-                        color: context.surface,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: context.border),
+                _card(
+                  title: 'Cài đặt ứng dụng',
+                  icon: Icons.tune,
+                  children: [
+                    ValueListenableBuilder<ThemeMode>(
+                      valueListenable: themeController,
+                      builder: (context, mode, _) {
+                        final isDarkNow =
+                            Theme.of(context).brightness == Brightness.dark;
+                        return SwitchListTile.adaptive(
+                          contentPadding: EdgeInsets.zero,
+                          value: isDarkNow,
+                          onChanged: (_) => themeController.toggle(
+                            Theme.of(context).brightness,
+                          ),
+                          secondary: Icon(
+                            isDarkNow ? Icons.dark_mode : Icons.light_mode,
+                            color: context.brand,
+                          ),
+                          title: const Text('Chế độ tối'),
+                          subtitle: Text(
+                            mode == ThemeMode.system
+                                ? 'Đang theo hệ thống'
+                                : (isDarkNow ? 'Đang bật' : 'Đang tắt'),
+                          ),
+                        );
+                      },
+                    ),
+                    Divider(color: context.border, height: 1),
+                    ValueListenableBuilder<double>(
+                      valueListenable: textScaleController,
+                      builder: (context, scale, _) {
+                        final isLarge = scale >= TextScaleController.large;
+                        return SwitchListTile.adaptive(
+                          contentPadding: EdgeInsets.zero,
+                          value: isLarge,
+                          onChanged: (v) => textScaleController.setLarge(v),
+                          secondary:
+                              Icon(Icons.format_size, color: context.brand),
+                          title: const Text('Chữ lớn'),
+                          subtitle: Text(
+                            isLarge ? 'Đang bật' : 'Phóng to chữ cho dễ đọc',
+                          ),
+                        );
+                      },
+                    ),
+                    Divider(color: context.border, height: 1),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading:
+                          Icon(Icons.help_outline, color: context.brand),
+                      title: const Text('Xem lại hướng dẫn'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              const OnboardingPage(isFirstRun: false),
+                        ),
                       ),
-                      child: SwitchListTile.adaptive(
-                        value: isDarkNow,
-                        onChanged: (_) => themeController.toggle(
-                          Theme.of(context).brightness,
-                        ),
-                        secondary: Icon(
-                          isDarkNow ? Icons.dark_mode : Icons.light_mode,
-                          color: context.brand,
-                        ),
-                        title: const Text('Chế độ tối'),
-                        subtitle: Text(
-                          mode == ThemeMode.system
-                              ? 'Đang theo hệ thống'
-                              : (isDarkNow ? 'Đang bật' : 'Đang tắt'),
-                        ),
-                      ),
-                    );
-                  },
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 10),
-                ValueListenableBuilder<double>(
-                  valueListenable: textScaleController,
-                  builder: (context, scale, _) {
-                    final isLarge = scale >= TextScaleController.large;
-                    return Container(
-                      decoration: BoxDecoration(
-                        color: context.surface,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: context.border),
-                      ),
-                      child: SwitchListTile.adaptive(
-                        value: isLarge,
-                        onChanged: (v) => textScaleController.setLarge(v),
-                        secondary: Icon(Icons.format_size, color: context.brand),
-                        title: const Text('Chữ lớn'),
-                        subtitle: Text(
-                          isLarge ? 'Đang bật' : 'Phóng to chữ cho dễ đọc',
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 10),
                 OutlinedButton.icon(
                   onPressed: _signOut,
                   icon: const Icon(Icons.logout),
                   label: const Text('Đăng xuất'),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF2E7D32),
-                    side: const BorderSide(color: Color(0xFF2E7D32)),
+                    foregroundColor: Colors.redAccent,
+                    side: const BorderSide(color: Colors.redAccent),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
-                OutlinedButton.icon(
-                  onPressed: _migrating ? null : _runMigration,
-                  icon: _migrating
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.sync_alt),
-                  label: const Text('Cập nhật dữ liệu (1 lần)'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF2E7D32),
-                    side: const BorderSide(color: Color(0xFF2E7D32)),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                const SizedBox(height: 12),
+                Center(
+                  child: TextButton.icon(
+                    onPressed: _migrating ? null : _runMigration,
+                    icon: _migrating
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Icon(Icons.sync_alt,
+                            size: 18, color: context.textMuted),
+                    label: Text(
+                      'Cập nhật dữ liệu (1 lần)',
+                      style: TextStyle(color: context.textMuted),
                     ),
                   ),
                 ),

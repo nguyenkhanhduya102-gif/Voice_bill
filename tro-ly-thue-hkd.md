@@ -6,11 +6,9 @@
 > Trước khi phát hành **phải đối chiếu kế toán/cơ quan thuế**. App chỉ **ước tính tham khảo**, **không nộp thay**.
 
 ---
-
 ## 0 · Hai thông số nền đã chốt
 - **Ngưỡng xét theo NĂM DƯƠNG LỊCH** (01/01–31/12), reset mỗi năm — KHÔNG dùng cửa sổ 12 tháng trượt.
 - **Tạp hóa thuộc nhóm "Phân phối, cung cấp hàng hóa"** → GTGT **1%**, TNCN tạm tính **0,5%** (mức 1–3 tỷ).
-
 ### Bảng tỷ lệ ngành nghề (lưu dạng cấu hình)
 | Nhóm ngành | GTGT | TNCN tạm (1–3 tỷ) |
 |---|---|---|
@@ -45,9 +43,7 @@ App sở hữu doanh thu → tự xác định bậc và áp đúng nghĩa vụ.
 ### Giai đoạn 1 — "Sổ doanh thu & cảnh báo ngưỡng" (MVP, phục vụ ~80% hộ ≤1 tỷ) ✅ ĐÃ LÀM
 > **Điều hướng (chốt): hướng A** — vào qua Hồ sơ → "Thuế & Báo cáo". Tối ưu giao diện tổng thể để sau khi xong hết chức năng.
 > Đã code: [tax_rules.dart](lib/services/tax_rules.dart) (config + logic thuần, 13 test), [tax_service.dart](lib/services/tax_service.dart) (gom doanh thu năm theo `createdAt` + xuất S1a CSV), [tax_page.dart](lib/pages/tax_page.dart) (đồng hồ doanh thu, badge bậc, cảnh báo ngưỡng, ước tính thuế, nghĩa vụ + hạn, nút xuất S1a, disclaimer), lối vào trong [profile_page.dart](lib/pages/profile_page.dart). Đã chốt D1 (80%/100%) · D2 (`createdAt` của bill) · D4 (CSV trước).
-
 Phục vụ đúng nhóm đông nhất, dùng lại data bill sẵn có, rủi ro pháp lý thấp nhất (bậc miễn thuế).
-
 1. **Đồng hồ doanh thu năm dương lịch** — cộng dồn bill theo năm hiện tại; biểu đồ tháng/quý.
 2. **Cảnh báo ngưỡng** khi chạm mốc 80%/100% của 1 tỷ (và 3 tỷ, 50 tỷ cho tương lai):
    > "Doanh thu năm nay đã đạt 950 triệu. Khi vượt 1 tỷ, từ quý sau bạn **bắt buộc dùng HĐĐT** + chuyển diện kê khai."
@@ -58,26 +54,17 @@ Phục vụ đúng nhóm đông nhất, dùng lại data bill sẵn có, rủi r
 ### Giai đoạn 2 — nhóm 1–3 tỷ (PP1)
 - UI chọn PP1/PP2 + giải thích hệ quả (1 sổ vs 4 sổ).
 - PP1: tính GTGT = 1%×DT, TNCN = (DT−1 tỷ)×0,5%; sinh **01/CNKD** theo quý; sổ **S2a-HKD**; xuất Excel/PDF để tự nhập eTax.
-
 ### Giai đoạn 3 — nhóm có chi phí (PP2 / >3 tỷ)
 - **Nhập chi phí mua vào bằng giọng nói** (tái dùng luồng xác nhận Phase 3 của nhập hàng).
 - **4 sổ S2b–e** + quyết toán 02/CNKD-TNCN-QTT (31/03).
 - **Cảnh báo "tiền mặt ≥5tr không được trừ"** (chi phí ≥5tr phải chuyển khoản mới được trừ).
-
 ### Giai đoạn 4 (chỉ khi có nhu cầu thật)
 - Tích hợp **HĐĐT** (nhà cung cấp hóa đơn điện tử), đọc XML đầu vào. Đắt & khó nhất → để cuối.
-
----
-
 ## 3 · Mô hình dữ liệu (phác thảo)
-
 - `TaxProfile` (per user): `nganhNghe` (mặc định "phan_phoi_hang_hoa"), `phuongPhap` (PP1/PP2, chỉ dùng khi 1–3 tỷ), `hoMoiKinhDoanh` (bool, ảnh hưởng hạn nộp), `namApDung`.
 - `taxRulesConfig` (hằng/Remote Config): bảng bậc + bảng tỷ lệ ngành ở mục 0–1. **Versioned theo năm.**
 - Doanh thu: **tính từ collection bill sẵn có**, group theo `năm`. Không tạo nguồn dữ liệu trùng.
 - Suy luận bậc: hàm thuần `xacDinhBac(doanhThuNam) -> Bac` + `tinhThue(Bac, profile, doanhThu, chiPhi?)` → **dễ viết unit test** (giống cách đã làm với `vietnamese_number` / `aggregateStockItems`).
-
----
-
 ## 4 · Quyết định cần chốt khi triển khai
 - D1. Mốc cảnh báo: 80% & 100% ngưỡng? Có cảnh báo tốc độ ("đà này quý 4 sẽ vượt") không? → đề xuất: 80%/100% trước, dự báo để sau.
 - D2. Doanh thu năm tính theo ngày bill (ngày lập hóa đơn) — xác nhận trường ngày đang lưu trên bill.

@@ -231,7 +231,14 @@ class ProductService {
         .toList();
   }
 
-  Future<int> decrementStockForSaleItems(List<BillItem> items) async {
+  Future<int> decrementStockForSaleItems(List<BillItem> items) =>
+      _adjustStockForSaleItems(items, -1);
+
+  /// Hoàn lại tồn kho khi xóa hóa đơn (cộng trả số lượng đã trừ lúc bán).
+  Future<int> restoreStockForSaleItems(List<BillItem> items) =>
+      _adjustStockForSaleItems(items, 1);
+
+  Future<int> _adjustStockForSaleItems(List<BillItem> items, int sign) async {
     final user = _auth.currentUser;
     if (user == null) {
       throw StateError('User not signed in');
@@ -288,7 +295,7 @@ class ProductService {
         final snap = snaps[entry.key];
         if (snap == null || !snap.exists) continue;
         final currentStock = (snap.data()?['stock'] as num?)?.toInt() ?? 0;
-        final nextStock = currentStock - entry.value;
+        final nextStock = currentStock + sign * entry.value;
         transaction.update(entry.key, {
           'stock': nextStock < 0 ? 0 : nextStock,
           'updatedAt': FieldValue.serverTimestamp(),

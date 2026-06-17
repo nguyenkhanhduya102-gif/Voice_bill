@@ -11,6 +11,7 @@ class UserProfile {
   final String storeName;
   final String phone;
   final String address;
+  final String taxCode;
   final String photoUrl;
   final String bankName;
   final String bankShortName;
@@ -25,6 +26,7 @@ class UserProfile {
     required this.storeName,
     required this.phone,
     required this.address,
+    this.taxCode = '',
     required this.photoUrl,
     required this.bankName,
     required this.bankShortName,
@@ -41,6 +43,7 @@ class UserProfile {
       storeName: (data['storeName'] ?? '').toString(),
       phone: (data['phone'] ?? '').toString(),
       address: (data['address'] ?? '').toString(),
+      taxCode: (data['taxCode'] ?? '').toString(),
       photoUrl: (data['photoUrl'] ?? '').toString(),
       bankName: (data['bankName'] ?? '').toString(),
       bankShortName: (data['bankShortName'] ?? '').toString(),
@@ -58,6 +61,7 @@ class UserProfile {
       'storeName': storeName,
       'phone': phone,
       'address': address,
+      'taxCode': taxCode,
       'photoUrl': photoUrl,
       'bankName': bankName,
       'bankShortName': bankShortName,
@@ -110,6 +114,7 @@ class ProfileService {
     required String storeName,
     required String phone,
     required String address,
+    String? taxCode,
     String? photoUrl,
     String? bankName,
     String? bankShortName,
@@ -127,6 +132,7 @@ class ProfileService {
       'storeName': storeName,
       'phone': phone,
       'address': address,
+      if (taxCode != null) 'taxCode': taxCode,
       if (photoUrl != null) 'photoUrl': photoUrl,
       if (bankName != null) 'bankName': bankName,
       if (bankShortName != null) 'bankShortName': bankShortName,

@@ -250,9 +250,8 @@ class _HistoryPageState extends State<HistoryPage> {
                             item: item,
                             dateText: formatDate(item.createdAt),
                             amountText: formatCurrency(item.total),
-                            statusText: item.status == 'debt'
-                                ? 'Ghi nợ'
-                                : 'Đã thanh toán',
+                            statusText:
+                                paymentLabel(item.status, item.paymentMethod),
                             isDark: isDark,
                             onTap: () => Navigator.of(context).push(
                               MaterialPageRoute(

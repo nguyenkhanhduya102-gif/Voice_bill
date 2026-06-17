@@ -13,11 +13,15 @@ class BillItem {
   /// thay vì khớp theo tên (dễ sai). Null nếu là mặt hàng tự do.
   final String? productId;
 
+  /// Đơn vị tính (kg, lon, gói…) — để hóa đơn đủ thông tin. '' nếu không rõ.
+  final String unit;
+
   const BillItem({
     required this.name,
     required this.quantity,
     required this.unitPrice,
     this.productId,
+    this.unit = '',
   });
 
   int get subtotal => unitPrice * quantity;
@@ -29,6 +33,7 @@ class BillItem {
       'unitPrice': unitPrice,
       'subtotal': subtotal,
       if (productId != null) 'productId': productId,
+      if (unit.isNotEmpty) 'unit': unit,
     };
   }
 
@@ -41,7 +46,21 @@ class BillItem {
       quantity: (data['quantity'] as num?)?.toInt() ?? 1,
       unitPrice: unitPrice,
       productId: data['productId']?.toString(),
+      unit: (data['unit'] ?? '').toString(),
     );
+  }
+}
+
+/// Nhãn hiển thị trạng thái/phương thức thanh toán của hóa đơn.
+String paymentLabel(String status, String paymentMethod) {
+  if (status == 'debt') return 'Ghi nợ';
+  switch (paymentMethod) {
+    case 'cash':
+      return 'Tiền mặt';
+    case 'transfer':
+      return 'Chuyển khoản';
+    default:
+      return 'Đã thanh toán';
   }
 }
 
@@ -49,17 +68,34 @@ class BillRecord {
   final String id;
   final List<BillItem> items;
   final int total;
+
+  /// 'paid' (đã thu) | 'debt' (ghi nợ).
   final String status;
+
+  /// 'cash' (tiền mặt) | 'transfer' (chuyển khoản) | '' (ghi nợ chưa trả).
+  final String paymentMethod;
   final DateTime? createdAt;
   final int invoiceNumber;
+
+  /// Snapshot thông tin người bán tại thời điểm xuất (để hóa đơn cũ luôn đúng
+  /// dù hồ sơ đổi sau). Rỗng với hóa đơn cũ.
+  final String sellerName;
+  final String sellerTaxCode;
+  final String sellerAddress;
+  final String sellerPhone;
 
   const BillRecord({
     required this.id,
     required this.items,
     required this.total,
     required this.status,
+    this.paymentMethod = '',
     required this.createdAt,
     this.invoiceNumber = 0,
+    this.sellerName = '',
+    this.sellerTaxCode = '',
+    this.sellerAddress = '',
+    this.sellerPhone = '',
   });
 
   factory BillRecord.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -73,8 +109,13 @@ class BillRecord {
       items: rawItems,
       total: (data['total'] as num?)?.toInt() ?? 0,
       status: (data['status'] ?? 'paid').toString(),
+      paymentMethod: (data['paymentMethod'] ?? '').toString(),
       createdAt: timestamp?.toDate(),
       invoiceNumber: (data['invoiceNumber'] as num?)?.toInt() ?? 0,
+      sellerName: (data['sellerName'] ?? '').toString(),
+      sellerTaxCode: (data['sellerTaxCode'] ?? '').toString(),
+      sellerAddress: (data['sellerAddress'] ?? '').toString(),
+      sellerPhone: (data['sellerPhone'] ?? '').toString(),
     );
   }
 }

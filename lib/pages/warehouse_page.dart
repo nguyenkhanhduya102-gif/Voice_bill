@@ -383,9 +383,7 @@ class _WarehousePageState extends State<WarehousePage> {
                                   child: _StatCard(
                                     title: 'Tổng mặt hàng',
                                     value: '${items.length}',
-                                    accentColor: const Color(0xFF2E7D32),
-                                    background: const Color(0xFFE8F5E9),
-                                    borderColor: const Color(0xFFA5D6A7),
+                                    accentColor: context.brand,
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -394,8 +392,6 @@ class _WarehousePageState extends State<WarehousePage> {
                                     title: 'Sắp hết hàng',
                                     value: '$lowStockCount',
                                     accentColor: const Color(0xFFD65D1D),
-                                    background: const Color(0xFFFFF3E6),
-                                    borderColor: const Color(0xFFF2D2B5),
                                   ),
                                 ),
                               ],
@@ -531,25 +527,22 @@ class _StatCard extends StatelessWidget {
   final String title;
   final String value;
   final Color accentColor;
-  final Color background;
-  final Color borderColor;
 
   const _StatCard({
     required this.title,
     required this.value,
     required this.accentColor,
-    required this.background,
-    required this.borderColor,
   });
 
   @override
   Widget build(BuildContext context) {
+    // Nền/viền suy ra từ màu nhấn -> tự hợp cả sáng lẫn tối.
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: background,
+        color: accentColor.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderColor),
+        border: Border.all(color: accentColor.withValues(alpha: 0.35)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -608,12 +601,12 @@ class _InventoryTile extends StatelessWidget {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE8F5E9),
+                    color: context.surfaceAlt,
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.inventory_2_rounded,
-                    color: Color(0xFF2E7D32),
+                    color: context.brand,
                   ),
                 ),
                 const SizedBox(width: 14),

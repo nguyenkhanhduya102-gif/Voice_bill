@@ -17,6 +17,7 @@ Future<void> main() async {
 
   await themeController.load();
   await textScaleController.load();
+  await coachController.load();
 
   if (kIsWeb) {
     await Firebase.initializeApp(
@@ -170,6 +171,8 @@ ElevatedButtonThemeData _elevatedButtonTheme() {
       backgroundColor: _primaryGreen,
       foregroundColor: Colors.white,
       padding: const EdgeInsets.symmetric(vertical: 16),
+      // Nút đủ cao để người lớn tuổi dễ chạm (>= 52dp).
+      minimumSize: const Size(0, 52),
       textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       elevation: 0,
@@ -182,6 +185,7 @@ OutlinedButtonThemeData _outlinedButtonTheme() {
     style: OutlinedButton.styleFrom(
       foregroundColor: _primaryGreen,
       padding: const EdgeInsets.symmetric(vertical: 16),
+      minimumSize: const Size(0, 52),
       textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       side: const BorderSide(color: _primaryGreen),

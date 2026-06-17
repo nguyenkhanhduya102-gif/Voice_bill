@@ -8,6 +8,29 @@ import 'package:voice_bill/services/tax_rules.dart';
 import 'package:voice_bill/utils/currency_formatter.dart';
 import 'package:voice_bill/utils/date_formatter.dart';
 
+/// Doanh thu một tháng.
+class MonthRevenue {
+  final int month; // 1-12
+  final int total;
+  final int count;
+  const MonthRevenue(this.month, this.total, this.count);
+}
+
+/// Gom doanh thu theo từng tháng (1-12) từ danh sách hóa đơn (thuần, dễ test).
+List<MonthRevenue> aggregateByMonth(List<BillRecord> bills) {
+  final totals = List<int>.filled(12, 0);
+  final counts = List<int>.filled(12, 0);
+  for (final b in bills) {
+    final d = b.createdAt;
+    if (d == null) continue;
+    final i = d.month - 1;
+    if (i < 0 || i > 11) continue;
+    totals[i] += b.total;
+    counts[i] += 1;
+  }
+  return [for (var i = 0; i < 12; i++) MonthRevenue(i + 1, totals[i], counts[i])];
+}
+
 /// Tổng hợp số liệu thuế cho một năm dương lịch.
 class TaxYearSummary {
   final int nam;

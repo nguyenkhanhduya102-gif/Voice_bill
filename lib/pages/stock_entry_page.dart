@@ -548,15 +548,15 @@ class _StockEntryPageState extends State<StockEntryPage> {
                                 width: 140,
                                 height: 140,
                                 decoration: BoxDecoration(
-                                  color: context.isDark
-                                      ? const Color(0xFF2A2A3A)
-                                      : const Color(0xFFF3F0FF),
+                                  color: context.brand.withValues(
+                                      alpha: context.isDark ? 0.18 : 0.12),
                                   shape: BoxShape.circle,
-                                  boxShadow: const [
+                                  boxShadow: [
                                     BoxShadow(
-                                      color: Color(0x22000000),
+                                      color:
+                                          context.brand.withValues(alpha: 0.2),
                                       blurRadius: 18,
-                                      offset: Offset(0, 6),
+                                      offset: const Offset(0, 6),
                                     ),
                                   ],
                                 ),
@@ -617,7 +617,7 @@ class _StockEntryPageState extends State<StockEntryPage> {
                       ),
                       const SizedBox(height: 24),
                       Text(
-                        'Danh sách nhập hàng',
+                        'Hàng đang có trong kho',
                         style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: context.textSecondary),
                       ),
                       const SizedBox(height: 12),
@@ -626,9 +626,40 @@ class _StockEntryPageState extends State<StockEntryPage> {
                         builder: (context, snapshot) {
                           final items = snapshot.data ?? [];
                           if (items.isEmpty) {
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              child: Text('Chưa có mặt hàng', style: TextStyle(color: context.textMuted)),
+                            return Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 18),
+                              decoration: BoxDecoration(
+                                color: context.surfaceAlt,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: context.border),
+                              ),
+                              child: Column(
+                                children: [
+                                  Icon(Icons.inventory_2_outlined,
+                                      size: 30, color: context.brand),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Kho chưa có mặt hàng',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                      color: context.textPrimary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Bấm mic và đọc, ví dụ:\n“Táo, 1 kg, 20 nghìn”',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      height: 1.4,
+                                      color: context.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             );
                           }
 

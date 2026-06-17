@@ -52,6 +52,7 @@ dependencies:
   http: ^1.2.0
   connectivity_plus: ^6.1.0
   shared_preferences: ^2.3.2
+  tutorial_coach_mark: ^1.2.11
 
 dev_dependencies:
   flutter_test:
@@ -63,6 +64,21 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.1
+
+# Cấu hình sinh app icon từ logo. Chạy: dart run flutter_launcher_icons
+flutter_launcher_icons:
+  image_path: "assets/icon/app_icon.png"
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  adaptive_icon_background: "#2E7D32"
+  adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
+  web:
+    generate: true
+    image_path: "assets/icon/app_icon.png"
+    background_color: "#2E7D32"
+    theme_color: "#2E7D32"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
