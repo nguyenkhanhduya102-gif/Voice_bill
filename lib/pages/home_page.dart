@@ -56,7 +56,11 @@ class _HomePageState extends State<HomePage> {
                     _TodayCard(billService: _billService),
                     const SizedBox(height: 28),
                     // Nút bán hàng bằng giọng nói (hành động chính).
-                    GestureDetector(
+                    Semantics(
+                      label: 'Bán hàng bằng giọng nói',
+                      hint: 'Chạm hai lần để tạo hóa đơn',
+                      button: true,
+                      child: GestureDetector(
                       key: coachKeyMic,
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(
@@ -94,6 +98,7 @@ class _HomePageState extends State<HomePage> {
                           child: WavePulse(size: 104, color: context.brand),
                         ),
                       ),
+                    ),
                     ),
                     const SizedBox(height: 20),
                     Text(
@@ -189,12 +194,16 @@ class _TodayCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 8),
-              Text(
-                formatCurrency(total),
-                style: TextStyle(
-                  fontSize: 30,
-                  fontWeight: FontWeight.bold,
-                  color: context.textPrimary,
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  formatCurrency(total),
+                  style: TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.bold,
+                    color: context.textPrimary,
+                  ),
                 ),
               ),
               const SizedBox(height: 2),

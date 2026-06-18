@@ -16,6 +16,7 @@ class StockEntryPage extends StatefulWidget {
 
 class _StockEntryPageState extends State<StockEntryPage> {
   bool _animateIn = false;
+  bool _saving = false;
   final ProductService _productService = ProductService();
   final VoiceController _voiceController = VoiceController();
   List<ProductItem> _catalog = [];
@@ -36,8 +37,8 @@ class _StockEntryPageState extends State<StockEntryPage> {
     try {
       final products = await _productService.fetchProducts();
       if (mounted) setState(() => _catalog = products);
-    } catch (_) {
-      // Không nạp được danh mục thì vẫn nhập bình thường (Gemini không gợi ý khớp tên).
+    } catch (e) {
+      debugPrint('Load catalog failed: $e');
     }
   }
 
@@ -83,7 +84,8 @@ class _StockEntryPageState extends State<StockEntryPage> {
         return;
       }
       await _reviewAndSave(parsed);
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Voice parse stock failed: $e');
       _showSnack('Không thể xử lý giọng nói');
     }
   }
@@ -102,6 +104,7 @@ class _StockEntryPageState extends State<StockEntryPage> {
     final confirmed = await _showStockConfirmSheet(drafts);
     if (confirmed != true) return;
 
+    setState(() => _saving = true);
     try {
       final result = await _productService.upsertProducts(
         drafts.map((d) => d.toMap()).toList(),
@@ -112,8 +115,11 @@ class _StockEntryPageState extends State<StockEntryPage> {
       if (result.added > 0) parts.add('${result.added} mặt hàng mới');
       if (result.merged > 0) parts.add('${result.merged} mặt hàng cộng dồn');
       _showSnack('Đã lưu: ${parts.isEmpty ? '0 mặt hàng' : parts.join(', ')}');
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Upsert products failed: $e');
       if (mounted) _showSnack('Không thể lưu vào kho');
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
@@ -492,6 +498,7 @@ class _StockEntryPageState extends State<StockEntryPage> {
                       IconButton(
                         onPressed: () => Navigator.of(context).maybePop(),
                         icon: Icon(Icons.arrow_back, color: context.textPrimary),
+                        tooltip: 'Quay lại',
                       ),
                       const SizedBox(width: 4),
                       Expanded(
@@ -530,6 +537,7 @@ class _StockEntryPageState extends State<StockEntryPage> {
                           MaterialPageRoute(builder: (_) => const ProfilePage()),
                         ),
                         icon: Icon(Icons.settings, color: context.brand),
+                        tooltip: 'Cài đặt',
                       ),
                     ],
                   ),
@@ -700,6 +708,8 @@ class _StockEntryPageState extends State<StockEntryPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (_saving)
+              const LinearProgressIndicator(minHeight: 3),
             StreamBuilder<List<ProductItem>>(
               stream: _productService.streamProducts(),
               builder: (context, snapshot) {
@@ -724,7 +734,7 @@ class _StockEntryPageState extends State<StockEntryPage> {
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: _openTextEntry,
+                    onPressed: _saving ? null : _openTextEntry,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF2E7D32),
                       foregroundColor: Colors.white,
@@ -732,10 +742,19 @@ class _StockEntryPageState extends State<StockEntryPage> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       elevation: 0,
                     ),
-                    icon: const Icon(Icons.inventory_2_rounded),
-                    label: const Text(
-                      'Lưu vào kho',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
+                    icon: _saving
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.inventory_2_rounded),
+                    label: Text(
+                      _saving ? 'Đang lưu...' : 'Lưu vào kho',
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
                     ),
                   ),
                 ),

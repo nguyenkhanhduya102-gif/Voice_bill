@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:voice_bill/services/voice_controller.dart';
 import 'package:voice_bill/utils/app_theme.dart';
@@ -59,7 +60,9 @@ class _VoiceRecorderSheetState extends State<_VoiceRecorderSheet>
     // trên overlay, khôi phục lại khi đóng (trang cha dùng nó cho chỉ báo online).
     _previousStateCallback = widget.controller.onStateChanged;
     widget.controller.onStateChanged = _onControllerStateChanged;
-    _start();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _start();
+    });
   }
 
   void _onControllerStateChanged() {
@@ -72,6 +75,7 @@ class _VoiceRecorderSheetState extends State<_VoiceRecorderSheet>
         _isDone = true;
         _statusText = widget.controller.lastError ?? 'Không thể nghe, thử lại';
       });
+      SemanticsService.sendAnnouncement(View.of(context), _statusText, TextDirection.ltr);
       return;
     }
     // Cập nhật chữ nghe được tạm thời để hiện trực tiếp khi đang nói.
@@ -96,6 +100,8 @@ class _VoiceRecorderSheetState extends State<_VoiceRecorderSheet>
     // Phản hồi "giờ nói được rồi" cho người mắt kém: rung nhẹ + tiếng click.
     HapticFeedback.mediumImpact();
     SystemSound.play(SystemSoundType.click);
+    final view = View.of(context);
+    SemanticsService.sendAnnouncement(view, 'Đang nghe', TextDirection.ltr);
 
     _countdown = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) return;
@@ -120,6 +126,7 @@ class _VoiceRecorderSheetState extends State<_VoiceRecorderSheet>
           _statusText = 'Đã nhận';
           _isDone = true;
         });
+        SemanticsService.sendAnnouncement(view, 'Đã nhận giọng nói', TextDirection.ltr);
       },
     );
   }
@@ -134,6 +141,7 @@ class _VoiceRecorderSheetState extends State<_VoiceRecorderSheet>
       _statusText = 'Không nghe rõ, hãy thử lại';
       _hasError = true;
     });
+    SemanticsService.sendAnnouncement(View.of(context), 'Không nghe rõ, hãy thử lại', TextDirection.ltr);
   }
 
   /// Nghe lại từ đầu mà không phải đóng overlay.

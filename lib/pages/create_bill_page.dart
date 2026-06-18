@@ -61,8 +61,8 @@ class _CreateBillPageState extends State<CreateBillPage> {
     try {
       final products = await _productService.fetchProducts();
       if (mounted) setState(() => _catalog = products);
-    } catch (_) {
-      // Không nạp được danh mục thì vẫn bán bình thường (không gợi ý giá).
+    } catch (e) {
+      debugPrint('Load catalog failed: $e');
     }
   }
 
@@ -199,7 +199,8 @@ class _CreateBillPageState extends State<CreateBillPage> {
         setState(() => _sellItems.addAll(items));
         _showSnack('Đã thêm ${items.length} mặt hàng');
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Voice parse sale failed: $e');
       _showSnack('Không thể xử lý giọng nói');
     }
   }
@@ -484,6 +485,7 @@ class _CreateBillPageState extends State<CreateBillPage> {
                       IconButton(
                         onPressed: () => Navigator.of(context).maybePop(),
                         icon: Icon(Icons.arrow_back, color: context.textPrimary),
+                        tooltip: 'Quay lại',
                       ),
                       const SizedBox(width: 4),
                       Expanded(
@@ -522,6 +524,7 @@ class _CreateBillPageState extends State<CreateBillPage> {
                           MaterialPageRoute(builder: (_) => const ProfilePage()),
                         ),
                         icon: Icon(Icons.settings, color: context.brand),
+                        tooltip: 'Cài đặt',
                       ),
                     ],
                   ),
@@ -701,10 +704,19 @@ class _CreateBillPageState extends State<CreateBillPage> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       elevation: 0,
                     ),
-                    icon: const Icon(Icons.receipt_long),
-                    label: const Text(
-                      'Xác nhận hóa đơn',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
+                    icon: _submitting
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.receipt_long),
+                    label: Text(
+                      _submitting ? 'Đang lưu...' : 'Xác nhận hóa đơn',
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
                     ),
                   ),
                 ),

@@ -1,8 +1,7 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:voice_bill/services/gemini_service.dart';
 import 'package:voice_bill/services/local_parser_service.dart';
@@ -224,7 +223,9 @@ class VoiceController {
       try {
         final result = await _gemini.parseSaleItems(text, products: products);
         if (result.isNotEmpty) return result;
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('Gemini parseSale failed, falling back to local: $e');
+      }
     }
     return _localParser.parseSaleItems(text);
   }
@@ -241,7 +242,9 @@ class VoiceController {
       try {
         final result = await _gemini.parseStockItems(text, products: products);
         if (result.isNotEmpty) return result;
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('Gemini parseStock failed, falling back to local: $e');
+      }
     }
     return _localParser.parseStockItems(text);
   }

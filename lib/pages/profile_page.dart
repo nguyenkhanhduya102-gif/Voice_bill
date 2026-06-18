@@ -49,6 +49,25 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _signOut() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Đăng xuất'),
+        content: const Text('Bạn muốn đăng xuất khỏi ứng dụng?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            child: const Text('Đăng xuất'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
     await _authService.signOut();
   }
 
@@ -70,7 +89,8 @@ class _ProfilePageState extends State<ProfilePage> {
       );
       HapticFeedback.mediumImpact();
       _showSnack('Đã lưu thông tin');
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Save profile failed: $e');
       _showSnack('Không thể lưu thông tin');
     } finally {
       if (mounted) {
@@ -229,7 +249,8 @@ class _ProfilePageState extends State<ProfilePage> {
       final productUpdated = await _productService.backfillPriceValues();
       final billUpdated = await _billService.backfillBillItemPrices();
       _showSnack('Đã cập nhật $productUpdated sản phẩm, $billUpdated hóa đơn');
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Migration failed: $e');
       _showSnack('Không thể cập nhật dữ liệu');
     } finally {
       if (mounted) {
@@ -322,6 +343,7 @@ class _ProfilePageState extends State<ProfilePage> {
         leading: IconButton(
           onPressed: () => Navigator.of(context).maybePop(),
           icon: const Icon(Icons.arrow_back),
+          tooltip: 'Quay lại',
         ),
         title: const Text(
           'Cài đặt',

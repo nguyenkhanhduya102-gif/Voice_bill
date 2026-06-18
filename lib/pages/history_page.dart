@@ -80,7 +80,8 @@ class _HistoryPageState extends State<HistoryPage> {
     try {
       final path = await _exportService.exportBillsToCsv();
       _showSnack('Đã xuất: $path');
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Export CSV failed: $e');
       _showSnack('Không thể xuất dữ liệu');
     }
   }

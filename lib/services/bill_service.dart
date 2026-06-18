@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:voice_bill/models/bill_models.dart';
 import 'package:voice_bill/services/product_service.dart';
 import 'package:voice_bill/utils/price_parser.dart';
@@ -78,8 +79,8 @@ class BillService {
 
     try {
       await ProductService().decrementStockForSaleItems(items);
-    } catch (_) {
-      // Best-effort: trừ kho thất bại không làm hỏng hóa đơn đã lưu.
+    } catch (e) {
+      debugPrint('Decrement stock failed: $e');
     }
 
     return BillRecord(
@@ -121,8 +122,8 @@ class BillService {
     // Hoàn kho trước (best-effort) rồi mới xóa hóa đơn.
     try {
       await ProductService().restoreStockForSaleItems(bill.items);
-    } catch (_) {
-      // Hoàn kho lỗi không chặn việc xóa hóa đơn.
+    } catch (e) {
+      debugPrint('Restore stock failed: $e');
     }
 
     await _firestore

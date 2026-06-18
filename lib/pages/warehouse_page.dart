@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:voice_bill/models/product_item.dart';
 import 'package:voice_bill/pages/stock_entry_page.dart';
@@ -21,6 +23,7 @@ class _WarehousePageState extends State<WarehousePage> {
   final ProductService _productService = ProductService();
   final GlobalKey<RefreshIndicatorState> _refreshKey = GlobalKey<RefreshIndicatorState>();
   String _searchQuery = '';
+  Timer? _searchDebounce;
   static const int _lowStockThreshold = 5;
   static const int _pageSize = 20;
   int _displayCount = _pageSize;
@@ -31,9 +34,14 @@ class _WarehousePageState extends State<WarehousePage> {
   void initState() {
     super.initState();
     _searchController.addListener(() {
-      setState(() {
-        _searchQuery = _searchController.text.trim();
-        _displayCount = _pageSize;
+      _searchDebounce?.cancel();
+      _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+        if (mounted) {
+          setState(() {
+            _searchQuery = _searchController.text.trim();
+            _displayCount = _pageSize;
+          });
+        }
       });
     });
     Future.microtask(() {
@@ -45,6 +53,7 @@ class _WarehousePageState extends State<WarehousePage> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -196,7 +205,8 @@ class _WarehousePageState extends State<WarehousePage> {
         stock: stock < 0 ? 0 : stock,
       );
       _showSnack('Đã cập nhật');
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Update product failed: $e');
       _showSnack('Không thể cập nhật');
     }
   }
@@ -226,9 +236,36 @@ class _WarehousePageState extends State<WarehousePage> {
 
     try {
       await _productService.deleteProduct(item.id);
-      _showSnack('Đã xoá "${item.name}"');
-    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Đã xoá "${item.name}"'),
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+          action: SnackBarAction(
+            label: 'Hoàn tác',
+            onPressed: () => _undoDeleteProduct(item),
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint('Delete product failed: $e');
       _showSnack('Không thể xoá mặt hàng');
+    }
+  }
+
+  Future<void> _undoDeleteProduct(ProductItem item) async {
+    try {
+      await _productService.addProduct(
+        name: item.name,
+        unit: item.unit,
+        priceValue: item.priceValue,
+        stock: item.stock,
+      );
+      _showSnack('Đã hoàn tác xoá "${item.name}"');
+    } catch (e) {
+      debugPrint('Undo delete product failed: $e');
+      _showSnack('Không thể hoàn tác');
     }
   }
 

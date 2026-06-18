@@ -13,7 +13,8 @@ Future<void> main() async {
 
   try {
     await dotenv.load(fileName: 'assets/.env');
-  } catch (_) {
+  } catch (e) {
+    debugPrint('Failed to load .env: $e');
   }
 
   await themeController.load();

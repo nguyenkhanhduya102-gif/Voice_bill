@@ -49,7 +49,8 @@ class _TaxPageState extends State<TaxPage> {
     try {
       final path = await _service.xuatSoDoanhThuS1a(summary);
       _showSnack('Đã xuất Sổ S1a: $path');
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Export S1a failed: $e');
       _showSnack('Không thể xuất sổ');
     } finally {
       if (mounted) setState(() => _exporting = false);

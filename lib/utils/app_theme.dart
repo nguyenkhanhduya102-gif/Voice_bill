@@ -25,7 +25,8 @@ class ThemeController extends ValueNotifier<ThemeMode> {
         default:
           value = ThemeMode.light;
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('ThemeController load error: $e');
       value = ThemeMode.light;
     }
   }
@@ -35,8 +36,8 @@ class ThemeController extends ValueNotifier<ThemeMode> {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_prefKey, mode.name);
-    } catch (_) {
-      // Không lưu được thì vẫn áp dụng cho phiên hiện tại.
+    } catch (e) {
+      debugPrint('ThemeController save error: $e');
     }
   }
 
@@ -67,7 +68,8 @@ class TextScaleController extends ValueNotifier<double> {
       final prefs = await SharedPreferences.getInstance();
       final v = prefs.getDouble(_prefKey);
       if (v != null && v > 0) value = v;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('TextScaleController load error: $e');
       value = normal;
     }
   }
@@ -77,8 +79,8 @@ class TextScaleController extends ValueNotifier<double> {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setDouble(_prefKey, value);
-    } catch (_) {
-      // Không lưu được thì vẫn áp dụng cho phiên hiện tại.
+    } catch (e) {
+      debugPrint('TextScaleController save error: $e');
     }
   }
 }
@@ -96,7 +98,8 @@ class OnboardingController extends ValueNotifier<bool> {
     try {
       final prefs = await SharedPreferences.getInstance();
       value = prefs.getBool(_prefKey) ?? false;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('OnboardingController load error: $e');
       value = false;
     }
   }
@@ -106,8 +109,8 @@ class OnboardingController extends ValueNotifier<bool> {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_prefKey, true);
-    } catch (_) {
-      // Không lưu được thì phiên sau hiện lại — chấp nhận được.
+    } catch (e) {
+      debugPrint('OnboardingController save error: $e');
     }
   }
 }
@@ -125,7 +128,8 @@ class CoachController extends ValueNotifier<bool> {
     try {
       final prefs = await SharedPreferences.getInstance();
       value = prefs.getBool(_prefKey) ?? false;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('CoachController load error: $e');
       value = false;
     }
   }
@@ -135,8 +139,8 @@ class CoachController extends ValueNotifier<bool> {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_prefKey, true);
-    } catch (_) {
-      // bỏ qua
+    } catch (e) {
+      debugPrint('CoachController save error: $e');
     }
   }
 }

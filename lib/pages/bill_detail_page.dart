@@ -33,8 +33,7 @@ class _BillDetailPageState extends State<BillDetailPage> {
       builder: (context) => AlertDialog(
         title: const Text('Xóa hóa đơn'),
         content: const Text(
-          'Xóa hẳn hóa đơn này? Tồn kho đã trừ sẽ được hoàn lại. '
-          'Thao tác không thể hoàn tác.',
+          'Xóa hẳn hóa đơn này? Tồn kho đã trừ sẽ được hoàn lại.',
         ),
         actions: [
           TextButton(
@@ -55,13 +54,39 @@ class _BillDetailPageState extends State<BillDetailPage> {
     try {
       await _billService.deleteBill(bill);
       if (!mounted) return;
-      _snack('Đã xóa hóa đơn');
       Navigator.of(context).pop();
-    } catch (_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Đã xóa hóa đơn'),
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+          action: SnackBarAction(
+            label: 'Hoàn tác',
+            onPressed: () => _undoDelete(),
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint('Delete bill failed: $e');
       if (mounted) {
         setState(() => _busy = false);
         _snack('Không thể xóa hóa đơn');
       }
+    }
+  }
+
+  Future<void> _undoDelete() async {
+    try {
+      await _billService.createBill(
+        items: bill.items,
+        total: bill.total,
+        status: bill.status,
+        paymentMethod: bill.paymentMethod,
+      );
+      _snack('Đã hoàn tác xóa hóa đơn');
+    } catch (e) {
+      debugPrint('Undo delete bill failed: $e');
+      _snack('Không thể hoàn tác');
     }
   }
 
@@ -106,7 +131,8 @@ class _BillDetailPageState extends State<BillDetailPage> {
       if (!mounted) return;
       _snack('Đã cập nhật: ${paymentLabel('paid', method)}');
       Navigator.of(context).pop();
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Mark bill paid failed: $e');
       if (mounted) {
         setState(() => _busy = false);
         _snack('Không thể cập nhật');
@@ -133,6 +159,7 @@ class _BillDetailPageState extends State<BillDetailPage> {
         leading: IconButton(
           onPressed: () => Navigator.of(context).maybePop(),
           icon: const Icon(Icons.arrow_back),
+          tooltip: 'Quay lại',
         ),
         title: const Text(
           'Chi tiết hóa đơn',
