@@ -1,11 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart'; 
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:voice_bill/pages/auth_gate.dart';
 import 'package:voice_bill/firebase_options.dart';
 import 'package:voice_bill/utils/app_theme.dart';
+import 'package:device_preview/device_preview.dart'; 
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,7 +34,14 @@ Future<void> main() async {
       cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
     );
   }
-  runApp(const VoiceBillApp());
+
+  
+  runApp(
+    DevicePreview(
+      enabled: !kReleaseMode, 
+      builder: (context) => const VoiceBillApp(),
+    ),
+  );
 }
 
 class VoiceBillApp extends StatelessWidget {
@@ -47,28 +55,38 @@ class VoiceBillApp extends StatelessWidget {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
           title: 'Hóa Đơn Giọng Nói',
-          theme: _buildLightTheme(),
-          darkTheme: _buildDarkTheme(),
-          themeMode: mode,
+          
+          
+          useInheritedMediaQuery: true, 
+          locale: DevicePreview.locale(context), 
           builder: (context, child) {
-            // Áp cỡ chữ toàn app theo lựa chọn "Chữ lớn".
+            
             return ValueListenableBuilder<double>(
               valueListenable: textScaleController,
               builder: (context, scale, _) {
                 final mq = MediaQuery.of(context);
+                
+                
+                final updatedChild = DevicePreview.appBuilder(context, child);
+
                 return MediaQuery(
                   data: mq.copyWith(textScaler: TextScaler.linear(scale)),
-                  child: child ?? const SizedBox.shrink(),
+                  child: updatedChild ?? const SizedBox.shrink(),
                 );
               },
             );
           },
+          
+          theme: _buildLightTheme(),
+          darkTheme: _buildDarkTheme(),
+          themeMode: mode,
           home: const AuthGate(),
         );
       },
     );
   }
 }
+
 
 const Color _primaryGreen = Color(0xFF2E7D32);
 const Color _textPrimary = Color(0xFF1D1D1D);
@@ -171,7 +189,6 @@ ElevatedButtonThemeData _elevatedButtonTheme() {
       backgroundColor: _primaryGreen,
       foregroundColor: Colors.white,
       padding: const EdgeInsets.symmetric(vertical: 16),
-      // Nút đủ cao để người lớn tuổi dễ chạm (>= 52dp).
       minimumSize: const Size(0, 52),
       textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

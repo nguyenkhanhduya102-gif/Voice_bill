@@ -190,10 +190,12 @@ class _RevenueCard extends StatelessWidget {
             children: [
               Icon(Icons.trending_up, color: context.brand),
               const SizedBox(width: 8),
-              Text('Doanh thu năm ${summary.nam}',
-                  style: TextStyle(
-                      fontSize: 14, color: context.textSecondary)),
-              const Spacer(),
+              Expanded(
+                child: Text('Doanh thu năm ${summary.nam}',
+                    style: TextStyle(
+                        fontSize: 14, color: context.textSecondary)),
+              ),
+              const SizedBox(width: 8),
               _TierBadge(bac: summary.bac),
             ],
           ),
@@ -453,7 +455,7 @@ class _ExportButton extends StatelessWidget {
               child: CircularProgressIndicator(strokeWidth: 2),
             )
           : const Icon(Icons.file_download_outlined),
-      label: const Text('Xuất Sổ doanh thu (S1a) — CSV'),
+      label: const Text('Xuất Sổ doanh thu (CSV)'),
       style: OutlinedButton.styleFrom(
         foregroundColor: context.brand,
         side: BorderSide(color: context.brand),
@@ -513,6 +515,7 @@ class _MonthlyCard extends StatelessWidget {
                 const SizedBox(width: 10),
                 Text(
                   formatCurrency(m.total),
+                  textAlign: TextAlign.right,
                   style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
